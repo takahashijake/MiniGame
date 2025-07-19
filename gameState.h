@@ -110,7 +110,42 @@ class Player{
 
     
 };
+class BattleSequence{
+    private:
+        Player* thisPlayer;
+        Character* thisCharacter;
 
+    public:
+        BattleSequence(Player* playerArgument, Character* characterArgument){
+            thisPlayer = playerArgument;
+            thisCharacter = characterArgument;
+        }
+
+        void playerTurn(){
+            std::cout << "It is your turn! What would you like to do?: " << std::endl;
+            std::cout << "Press A to attack" << std::endl;
+            setNonBlockingInput();
+            char input_char = getNonBlockingChar();
+            if (input_char != 0){
+                input_char = toupper(input_char);
+                if (input_char == 'A'){
+                    std::cout << "Attack has been attempted!" << std::endl;
+                }
+            }
+        }
+        void mainBattle(){
+            std::cout << "It is your turn! What would you to do?: " << std::endl;
+            setNonBlockingInput();
+
+        }
+
+        ~BattleSequence(){
+            delete thisPlayer;
+            delete thisCharacter;
+        }
+
+
+};
 class GameState{
     private:
         std::unique_ptr<RandomGenerator> RandomNumber;

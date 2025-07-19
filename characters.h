@@ -152,5 +152,4 @@ class Knight: public Character{
         }
 };
 
-
 #endif 
