@@ -57,12 +57,14 @@ private:
 
     std::mt19937 m_engine;
 };
-class Player{
+
+class Player : public Character{
 
     private:
         int health;
         std::string name; 
         std::unordered_map<Items, int> inventory;
+        RandomGenerator* randomNumber;
 
     public:
 
@@ -74,6 +76,7 @@ class Player{
             name = tempName; 
             health = 1000;
             terminalClear();
+            randomNumber = new RandomGenerator();
         }
 
         void addInventory(Items thisItem, int quantity){
@@ -105,8 +108,30 @@ class Player{
             }
         }
 
-        void attack(Character* character){
+        void modifyHealth(int healthFactor){
+            health -= hleathFactor;
+            
         }
+
+        void attack(Character* character){
+            std::cout << "Attacked " << character->getName(character) << std::endl;
+            if (character->getShieldState(character) == ShieldState::up){
+                std::cout << "Attack failed! " << character->getName(character)  << " has shield up! " << std::endl;
+            }
+            else if (character->getShieldState(character) == ShieldState::down){
+                int chance = randomNumber->randomGenerator();
+                if (chance <= 30){
+                    std::cout << "Attack Missed" << std::endl;
+                }
+                else if (chance > 30){
+                    int damage = randomNumber->randomGenerator();
+                    character->modifyHealth(character, damage);
+                    std::cout << character->getName(character) << " has " << character->getHealth(character) << " remaining!" << std::endl;
+                }
+            }
+        }   
+
+
 
     
 };
@@ -116,9 +141,10 @@ class BattleSequence{
         Character* thisCharacter;
 
     public:
-        BattleSequence(Player* playerArgument, Character* characterArgument){
-            thisPlayer = playerArgument;
-            thisCharacter = characterArgument;
+        BattleSequence(const std::unique_ptr<Player>& playerArgument, const std::unique_ptr<Character>& characterArgument){
+            thisPlayer = playerArgument.get();
+            thisCharacter = characterArgument.get();
+            std::cout << "Battle Sequence initiated " << std::endl;
         }
 
         void playerTurn(){
@@ -129,19 +155,21 @@ class BattleSequence{
             if (input_char != 0){
                 input_char = toupper(input_char);
                 if (input_char == 'A'){
-                    std::cout << "Attack has been attempted!" << std::endl;
+                    thisPlayer->attack(thisCharacter);
                 }
             }
         }
-        void mainBattle(){
-            std::cout << "It is your turn! What would you to do?: " << std::endl;
-            setNonBlockingInput();
 
+
+        void mainBattle(){
+            while (true){
+                playerTurn();
+
+            }
         }
 
         ~BattleSequence(){
-            delete thisPlayer;
-            delete thisCharacter;
+
         }
 
 
@@ -191,6 +219,8 @@ class GameState{
                                     std::unique_ptr<Character> newEnemy = std::make_unique<Mage>();
                                     std::cout << "You have encountered a new enemy Mage! Prepare for battle!" << std::endl;
                                     std::this_thread::sleep_for(std::chrono::seconds(1));
+                                    std::unique_ptr<BattleSequence> battleStart = std::make_unique<BattleSequence>(thisPlayer, newEnemy);
+                                    battleStart->mainBattle();
                                     // Battle currentBattle(*thisPlayer, std::move(newEnemy));
                                     // bool playerWon = currentBattle.startBattle();
                                 }
