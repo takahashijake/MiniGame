@@ -58,7 +58,7 @@ private:
     std::mt19937 m_engine;
 };
 
-class Player : public Character{
+class Player{
 
     private:
         int health;
@@ -109,8 +109,8 @@ class Player : public Character{
         }
 
         void modifyHealth(int healthFactor){
-            health -= hleathFactor;
-            
+            health = health - healthFactor;
+
         }
 
         void attack(Character* character){
@@ -139,6 +139,11 @@ class BattleSequence{
     private:
         Player* thisPlayer;
         Character* thisCharacter;
+        enum turnState{
+            playerTurn,
+            enemyTurn,
+            gameOver
+        };
 
     public:
         BattleSequence(const std::unique_ptr<Player>& playerArgument, const std::unique_ptr<Character>& characterArgument){
@@ -147,24 +152,30 @@ class BattleSequence{
             std::cout << "Battle Sequence initiated " << std::endl;
         }
 
-        void playerTurn(){
+        void playerMove(){
             std::cout << "It is your turn! What would you like to do?: " << std::endl;
             std::cout << "Press A to attack" << std::endl;
-            setNonBlockingInput();
-            char input_char = getNonBlockingChar();
-            if (input_char != 0){
-                input_char = toupper(input_char);
-                if (input_char == 'A'){
-                    thisPlayer->attack(thisCharacter);
-                }
+            char inputMove;
+            std::cin >> inputMove;
+            inputMove = toupper(inputMove);
+            if (inputMove == 'A'){
+                thisPlayer->attack(thisCharacter);
+
             }
         }
 
 
         void mainBattle(){
-            while (true){
-                playerTurn();
-
+            enum turnState turn = turnState::playerTurn;
+            while (turn != gameOver){
+                if (turn == turnState::playerTurn){
+                    playerMove();
+                    turn = turnState::enemyTurn;
+                }
+                else if (turn == turnState::enemyTurn){
+                    std::cout << "Enemey has moved!" << std::endl;
+                    turn = turnState::playerTurn;
+                }
             }
         }
 

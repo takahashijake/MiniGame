@@ -4,17 +4,16 @@
 #include <iostream> 
 #include <memory>
 #include <string>
-
+enum class ShieldState{
+            down,
+            up,
+        };
 class Character{
 
     protected:
         std::string name;
         int health;
 
-        enum class ShieldState{
-            down,
-            up,
-        };
 
         enum ShieldState CharacterShield;
 
