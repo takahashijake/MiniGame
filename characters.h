@@ -20,12 +20,12 @@ class Character{
     public:
         Character();
         virtual void attack(Character* character) = 0;
-        virtual std::string getName(Character* character) const;
-        virtual int getHealth(Character* character) const;      
-        virtual void modifyHealth(Character* character, int modifyValue); 
+        virtual std::string getName() const;
+        virtual int getHealth() const;      
+        virtual void modifyHealth(int modifyValue); 
         virtual void attackPlayer(Player* player) = 0;
         void switchShieldState(); 
-        virtual ShieldState getShieldState(Character* character) const; 
+        virtual ShieldState getShieldState() const; 
         virtual void defend() = 0;
         virtual void heal() = 0;
         virtual ~Character();

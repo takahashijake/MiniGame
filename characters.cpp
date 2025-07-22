@@ -1,6 +1,4 @@
 #include "characters.h"
-
-
 #include "gameState.h" 
 
 
@@ -8,10 +6,10 @@ Character::Character() : name("CharacterName"), health(0), CharacterShield(Shiel
 
 }
 
-std::string Character::getName(Character* character) const { return name; }
-int Character::getHealth(Character* character) const { return character->health; }
-void Character::modifyHealth(Character* character, int modifyValue) {
-    character->health -= modifyValue;
+std::string Character::getName() const { return name; }
+int Character::getHealth() const { return health; }
+void Character::modifyHealth(int modifyValue) {
+    health -= modifyValue;
 }
 ShieldState Character::getShieldState(Character* character) const { return character->CharacterShield; }
 void Character::switchShieldState() {
@@ -36,18 +34,18 @@ Mage::Mage() {
 
 void Mage::attack(Character* character) {
     if (character->getShieldState(character) == ShieldState::up) {
-        std::cout << "Attack failed! " << character->getName(character) << " has shield up" << std::endl;
+        std::cout << "Attack failed! " << character->getName() << " has shield up" << std::endl;
         return;
     }
-    if (character->getHealth(character) <= 0) {
-        std::cout << character->getName(character) << " has already died! Cannot attack again!" << std::endl;
+    if (character->getHealth() <= 0) {
+        std::cout << character->getName() << " has already died! Cannot attack again!" << std::endl;
     } else {
-        std::cout << "Mage is attacking " << character->getName(character) << std::endl;
-        character->modifyHealth(character, 80);
-        if (character->getHealth(character) <= 0) {
-            std::cout << character->getName(character) << " has died!" << std::endl;
+        std::cout << "Mage is attacking " << character->getName() << std::endl;
+        character->modifyHealth(80);
+        if (character->getHealth() <= 0) {
+            std::cout << character->getName() << " has died!" << std::endl;
         } else {
-            std::cout << character->getName(character) << " has " << character->getHealth(character) << " health remaining " << std::endl;
+            std::cout << character->getName() << " has " << character->getHealth() << " health remaining " << std::endl;
         }
     }
     std::cout << std::endl;
@@ -89,14 +87,14 @@ Knight::Knight() {
 
 void Knight::attack(Character* character) {
     if (character->getShieldState(character) == ShieldState::up) {
-        std::cout << "Attack failed! " << character->getName(character) << " has shield up" << std::endl;
+        std::cout << "Attack failed! " << character->getName() << " has shield up" << std::endl;
     } else { // Shield is down
-        std::cout << "Knight is attacking " << character->getName(character) << " with his sword!" << std::endl;
-        character->modifyHealth(character, 50);
-        if (character->getHealth(character) <= 0) {
-            std::cout << character->getName(character) << " has died!" << std::endl;
+        std::cout << "Knight is attacking " << character->getName() << " with his sword!" << std::endl;
+        character->modifyHealth(50);
+        if (character->getHealth() <= 0) {
+            std::cout << character->getName() << " has died!" << std::endl;
         } else {
-            std::cout << character->getName(character) << " has " << character->getHealth(character) << " health remaining " << std::endl;
+            std::cout << character->getName() << " has " << character->getHealth() << " health remaining " << std::endl;
         }
     }
     std::cout << std::endl;
