@@ -53,6 +53,12 @@ public:
         return random;
     }
 
+    int randomDamage(){
+        std::uniform_int_distribution<int> damage(20, 50);
+        int randomDamageCount = damage(m_engine);
+        return randomDamageCount;
+    }
+
 private:
 
     std::mt19937 m_engine;
@@ -81,6 +87,10 @@ class Player{
 
         void addInventory(Items thisItem, int quantity){
             inventory[thisItem] += quantity;
+        }
+
+        int getHealth() const{
+            return health;
         }
 
         std::string inventoryString(Items thisItem){
@@ -129,16 +139,12 @@ class Player{
                     std::cout << character->getName(character) << " has " << character->getHealth(character) << " remaining!" << std::endl;
                 }
             }
-        }   
-
-
-
-    
+        }  
 };
 class BattleSequence{
     private:
-        Player* thisPlayer;
         Character* thisCharacter;
+        Player* thisPlayer;
         enum turnState{
             playerTurn,
             enemyTurn,
