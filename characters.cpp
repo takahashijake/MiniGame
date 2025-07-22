@@ -11,7 +11,7 @@ int Character::getHealth() const { return health; }
 void Character::modifyHealth(int modifyValue) {
     health -= modifyValue;
 }
-ShieldState Character::getShieldState(Character* character) const { return character->CharacterShield; }
+ShieldState Character::getShieldState() const { return CharacterShield; }
 void Character::switchShieldState() {
     if (CharacterShield == ShieldState::up) {
         std::cout << "Shield is up! Putting shield down!" << std::endl;
@@ -33,7 +33,7 @@ Mage::Mage() {
 }
 
 void Mage::attack(Character* character) {
-    if (character->getShieldState(character) == ShieldState::up) {
+    if (character->getShieldState() == ShieldState::up) {
         std::cout << "Attack failed! " << character->getName() << " has shield up" << std::endl;
         return;
     }
@@ -86,7 +86,7 @@ Knight::Knight() {
 }
 
 void Knight::attack(Character* character) {
-    if (character->getShieldState(character) == ShieldState::up) {
+    if (character->getShieldState() == ShieldState::up) {
         std::cout << "Attack failed! " << character->getName() << " has shield up" << std::endl;
     } else { // Shield is down
         std::cout << "Knight is attacking " << character->getName() << " with his sword!" << std::endl;
