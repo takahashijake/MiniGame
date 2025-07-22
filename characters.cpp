@@ -1,173 +1,132 @@
-#ifndef CHARACTERS_H
-#define CHARACTERS_H
-
-#include <iostream> 
-#include <memory>
-#include <string>
+#include "characters.h"
 
 
+#include "gameState.h" 
 
-class Player;
-class RandomGenerator;
 
-enum class ShieldState{
-            down,
-            up,
-        };
+Character::Character() : name("CharacterName"), health(0), CharacterShield(ShieldState::down), randomNumber(nullptr) {
 
-class Character{
+}
 
-    protected:
-        std::string name;
-        int health;
-        enum ShieldState CharacterShield;
-        RandomGenerator* randomNumber;
+std::string Character::getName(Character* character) const { return name; }
+int Character::getHealth(Character* character) const { return character->health; }
+void Character::modifyHealth(Character* character, int modifyValue) {
+    character->health -= modifyValue;
+}
+ShieldState Character::getShieldState(Character* character) const { return character->CharacterShield; }
+void Character::switchShieldState() {
+    if (CharacterShield == ShieldState::up) {
+        std::cout << "Shield is up! Putting shield down!" << std::endl;
+        CharacterShield = ShieldState::down;
+    } else {
+        std::cout << "Shield is down! Putting shield up!" << std::endl;
+        CharacterShield = ShieldState::up;
+    }
+}
+Character::~Character() {
+    delete randomNumber; 
+}
 
-    public:
-        Character(){
-            name = "CharacterName";
-            health = 0;
-            CharacterShield = ShieldState::down;
+Mage::Mage() {
+    health = 500;
+    name = "Mage";
+    CharacterShield = ShieldState::down;
+    randomNumber = new RandomGenerator(); 
+}
+
+void Mage::attack(Character* character) {
+    if (character->getShieldState(character) == ShieldState::up) {
+        std::cout << "Attack failed! " << character->getName(character) << " has shield up" << std::endl;
+        return;
+    }
+    if (character->getHealth(character) <= 0) {
+        std::cout << character->getName(character) << " has already died! Cannot attack again!" << std::endl;
+    } else {
+        std::cout << "Mage is attacking " << character->getName(character) << std::endl;
+        character->modifyHealth(character, 80);
+        if (character->getHealth(character) <= 0) {
+            std::cout << character->getName(character) << " has died!" << std::endl;
+        } else {
+            std::cout << character->getName(character) << " has " << character->getHealth(character) << " health remaining " << std::endl;
         }
-        virtual void attack(Character* character) = 0;
-        virtual std::string getName(Character* character){return character->name;}
-        virtual int getHealth(Character* character){return character->health;}
-        virtual void modifyHealth(Character* character, int modifyValue){
-            health = health - modifyValue;
+    }
+    std::cout << std::endl;
+}
+
+void Mage::attackPlayer(Player* player) {
+    int damage = randomNumber->randomDamage();
+    std::cout << "Mage has attacked you! Dealing " << damage << " damage!" << std::endl;
+    player->modifyHealth(damage);
+    std::cout << "Player has " << player->getHealth() << " remaining!" << std::endl;
+}
+
+bool Mage::healthFull() const {
+    return health == 500;
+}
+
+void Mage::heal() {
+    if (!healthFull()) {
+        std::cout << "Health is currently at " << health << "! Now healing..." << std::endl;
+        health += 70;
+        if (health > 500) health = 500; // Cap at max health
+        std::cout << "Used a health potion! Health is now at " << health << std::endl;
+    }
+    std::cout << std::endl;
+}
+
+void Mage::defend() {
+    switchShieldState();
+    std::cout << std::endl;
+}
+
+
+Knight::Knight() {
+    health = 300;
+    name = "Knight";
+    CharacterShield = ShieldState::down;
+    randomNumber = new RandomGenerator(); 
+}
+
+void Knight::attack(Character* character) {
+    if (character->getShieldState(character) == ShieldState::up) {
+        std::cout << "Attack failed! " << character->getName(character) << " has shield up" << std::endl;
+    } else { // Shield is down
+        std::cout << "Knight is attacking " << character->getName(character) << " with his sword!" << std::endl;
+        character->modifyHealth(character, 50);
+        if (character->getHealth(character) <= 0) {
+            std::cout << character->getName(character) << " has died!" << std::endl;
+        } else {
+            std::cout << character->getName(character) << " has " << character->getHealth(character) << " health remaining " << std::endl;
         }
-        virtual void attackPlayer(Player* player);
-        void switchShieldState(Character* character){
-            if (character->CharacterShield == ShieldState::up){
-                std::cout << "Shield is up! Putting shield down!" << std::endl;
-                character->CharacterShield = ShieldState::down;
-            }
-            else if (character->CharacterShield == ShieldState::down){
-                std::cout << "Shield is down! Putting shield up!" << std::endl;
-                character->CharacterShield = ShieldState::up;
-            }
-        }
-        void playerFunction(Player& thisPlayer){
-            thisPlayer.modifyHealth(int healthFactor);
-        }
-        virtual ShieldState getShieldState(Character* character){return character->CharacterShield;}
-        virtual void defend() = 0;
-        virtual void heal() = 0;
+    }
+    std::cout << std::endl;
+}
 
-        virtual ~Character(){
+void Knight::attackPlayer(Player* player) {
+    int damage = randomNumber->randomDamage();
+    std::cout << "Knight has attacked you! Dealing " << damage << " damage!" << std::endl;
+    player->modifyHealth(damage);
+    std::cout << "Player has " << player->getHealth() << " remaining!" << std::endl;
+}
 
-        }
-};
+bool Knight::healthFull() const {
+    return health == 300;
+}
 
-class Mage : public Character{
-
-    public:
-
-        Mage(){
-            health = 500;
-            name = "Mage";
-            CharacterShield = ShieldState::down;
-            randomNumber = new RandomGenerator();
-
-        }
-
-        void attack(Character* character) override{
-            if (getShieldState(character) == ShieldState::up){
-                std::cout << "Attack failed! " << getName(character) << " has shield up" << std::endl;
-                return;
-            }
-            if (getHealth(character) <= 0){
-                std::cout << getName(character) << " has already died! Cannot attack again!" << std::endl;
-            }
-            else if (getShieldState(character) == ShieldState::down){
-                std::cout << "Mage is attacking " << getName(character) << std::endl;
-                modifyHealth(character, 80);
-                if (getHealth(character) <= 0){
-                    std::cout << getName(character) << " has died!" << std::endl;
-                }
-                else{
-                    std::cout << getName(character) << " has " << getHealth(character) << " health remaining " << std::endl;
-                }
-            }
-            std::cout << std::endl;
-        }
-
-        void attackPlayer(Player* player) override{
-            int damage = randomNumber->randomDamage();
-            std::cout << "Mage has attacked you! Dealing " << damage << " damage!" << std::endl;
-            player->modifyHealth(damage);
-            std::cout << "Player has " << player->getHealth() << " remaining!" << std::endl;
-        }
-
-        bool healthFull(){
-            if (health == 500){
-                return true;
-            }
-            else{
-                return false;
-            }
-            return false;
-        }
-
-        void heal() override{
-            if (!healthFull()){
-                std::cout << "Health is currently at " << health << "! Now healing..." << std::endl;
-                health = health + 70;
-                std::cout << "Used a health potion! Health is now at " << health << std::endl;
-            }
-            std::cout << std::endl;
-        }
-
-        void defend() override{
-            switchShieldState(this);
-            std::cout << std::endl;
-        }
-
-};
-
-class Knight: public Character{
-    
-    public:
-        Knight(){
+void Knight::heal() {
+    if (!healthFull()) {
+        std::cout << "Health is currently at " << health << "! Now healing..." << std::endl;
+        health += 70;
+        if (health > 300) { // Cap at max health
             health = 300;
-            name = "Knight";
-            CharacterShield = ShieldState::down;
         }
+        std::cout << "Used a health potion! Health is now at " << health << std::endl;
+    }
+    std::cout << std::endl;
+}
 
-        void attack(Character* character) override{
-            if (getShieldState(character) == ShieldState::up){
-                std::cout << "Attack failed! " << getName(character) << " has shield up" << std::endl;
-            }
-            else if (getShieldState(character) == ShieldState::down){
-                std::cout << "Knight is attacking " << getName(character) << " with his sword!" << std::endl;
-                modifyHealth(character, 50);
-                
-            }
-            std::cout << std::endl;
-        }
+void Knight::defend() {
+    switchShieldState();
+    std::cout << std::endl;
+}
 
-        bool healthFull(){
-            if (health == 500){
-                return true;
-            }
-            else{
-                return false;
-            }
-            return false;
-        }
-
-        void heal() override{
-            if (!healthFull()){
-                std::cout << "Health is currently at " << health << "! Now healing..." << std::endl;
-                health = health + 70;
-                std::cout << "Used a health potion! Health is now at " << health << std::endl;
-            }
-            std::cout << std::endl;
-        }
-
-        void defend() override{
-            switchShieldState(this);
-            std::cout << std::endl;
-        }
-};
-
-#endif 

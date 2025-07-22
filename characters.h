@@ -7,8 +7,8 @@ class Player;
 class RandomGenerator;
 
 enum class ShieldState{
-    Down,
-    Up,
+    down,
+    up,
 };
 class Character{
     protected:
@@ -20,12 +20,12 @@ class Character{
     public:
         Character();
         virtual void attack(Character* character) = 0;
-        virtual std::string getName() const; // Renamed, removed param
-        virtual int getHealth() const;       // Renamed, removed param
-        virtual void modifyHealth(int modifyValue); // Renamed, removed param
+        virtual std::string getName(Character* character) const;
+        virtual int getHealth(Character* character) const;      
+        virtual void modifyHealth(Character* character, int modifyValue); 
         virtual void attackPlayer(Player* player) = 0;
-        void switchShieldState(); // Renamed, removed param
-        virtual ShieldState getShieldState() const; // Renamed, removed param
+        void switchShieldState(); 
+        virtual ShieldState getShieldState(Character* character) const; 
         virtual void defend() = 0;
         virtual void heal() = 0;
         virtual ~Character();
@@ -51,4 +51,4 @@ public:
     void defend() override;
 };
 
-#endif CHARACTERS_H
+#endif

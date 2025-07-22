@@ -16,51 +16,19 @@
 enum class Items{
     Sword,
     Potion,
-    Key, 
-    Gold,
+    Key,
+    Gold
 };
-
-void terminalClear(){
-    std::cout << "\033[2J\033[1;1H" << std::endl;
-}
+void terminalClear();
 
 class RandomGenerator {
 public:
-
-    RandomGenerator() {
-        m_engine.seed(std::random_device{}());
-
-       
-    }
-    int randomGenerator() {
-        // Define a uniform integer distribution for the desired range.
-        // The range [1, 100] means both 1 and 100 are possible outcomes.
-        std::uniform_int_distribution<int> distribution(1, 100);
-
-        // Generate a random number using the engine and the defined distribution,
-        // and store it in a local variable.
-        int generatedValue = distribution(m_engine);
-        std::cout << "Random number is: " << generatedValue << std::endl;
-
-        // Return the stored random number.
-        return generatedValue;
-    }
-
-    Items randomItem(){
-        std::uniform_int_distribution<int> item(0, 3);
-        int randomItem = item(m_engine);
-        enum Items random = static_cast<Items>(randomItem);
-        return random;
-    }
-
-    int randomDamage(){
-        std::uniform_int_distribution<int> damage(20, 50);
-        int randomDamageCount = damage(m_engine);
-        return randomDamageCount;
-    }
+    RandomGenerator();
+    int randomGenerator();
+    Items randomItem();
+    int randomDamage();
 
 private:
-
     std::mt19937 m_engine;
 };
 
@@ -73,74 +41,15 @@ class Player{
         RandomGenerator* randomNumber;
 
     public:
-
-        Player(){
-            std::cout << "Welcome to Jake Takahashi's minigame!" << std::endl;
-            std::cout << "Before we start, what would you like your name to be: ";
-            std::string tempName;
-            std:getline(std::cin, tempName);
-            name = tempName; 
-            health = 1000;
-            terminalClear();
-            randomNumber = new RandomGenerator();
-        }
-
-        void addInventory(Items thisItem, int quantity){
-            inventory[thisItem] += quantity;
-        }
-
-        int getHealth() const{
-            return health;
-        }
-
-        std::string inventoryString(Items thisItem){
-            switch(thisItem){
-                case Items::Sword:
-                    return "Sword";
-                case Items::Potion:
-                    return "Potion";
-                case Items::Key:
-                    return "Key";
-                case Items::Gold:
-                    return "Gold";
-            }
-        }
-
-        void viewInventory(){
-            if (inventory.empty()){
-                std::cout << "Inventory is empty! " << std::endl;
-            }
-            else if (!inventory.empty()){
-                typedef std::unordered_map<Items, int> InventoryMapType;
-                for (InventoryMapType::iterator it = inventory.begin(); it != inventory.end(); ++it) {
-                    std::cout << "Number of " << inventoryString(it->first) << " is " << it->second << std::endl;
-                }
-            }
-        }
-
-        void modifyHealth(int healthFactor){
-            health = health - healthFactor;
-
-        }
-
-        void attack(Character* character){
-            std::cout << "Attacked " << character->getName(character) << std::endl;
-            if (character->getShieldState(character) == ShieldState::up){
-                std::cout << "Attack failed! " << character->getName(character)  << " has shield up! " << std::endl;
-            }
-            else if (character->getShieldState(character) == ShieldState::down){
-                int chance = randomNumber->randomGenerator();
-                if (chance <= 30){
-                    std::cout << "Attack Missed" << std::endl;
-                }
-                else if (chance > 30){
-                    int damage = randomNumber->randomGenerator();
-                    character->modifyHealth(character, damage);
-                    std::cout << character->getName(character) << " has " << character->getHealth(character) << " remaining!" << std::endl;
-                }
-            }
-        }  
+        Player();
+        void addInventory(Items thisItem, int quantity);
+        int getHealth();
+        std::string inventoryString(Items thisItem);
+        void viewInventory();
+        void modifyHealth(int healthFactor);
+        void attack(Character* character);
 };
+
 class BattleSequence{
     private:
         Character* thisCharacter;
@@ -152,44 +61,10 @@ class BattleSequence{
         };
 
     public:
-        BattleSequence(const std::unique_ptr<Player>& playerArgument, const std::unique_ptr<Character>& characterArgument){
-            thisPlayer = playerArgument.get();
-            thisCharacter = characterArgument.get();
-            std::cout << "Battle Sequence initiated " << std::endl;
-        }
-
-        void playerMove(){
-            std::cout << "It is your turn! What would you like to do?: " << std::endl;
-            std::cout << "Press A to attack" << std::endl;
-            char inputMove;
-            std::cin >> inputMove;
-            inputMove = toupper(inputMove);
-            if (inputMove == 'A'){
-                thisPlayer->attack(thisCharacter);
-
-            }
-        }
-
-
-        void mainBattle(){
-            enum turnState turn = turnState::playerTurn;
-            while (turn != gameOver){
-                if (turn == turnState::playerTurn){
-                    playerMove();
-                    turn = turnState::enemyTurn;
-                }
-                else if (turn == turnState::enemyTurn){
-                    std::cout << "Enemey has moved!" << std::endl;
-                    turn = turnState::playerTurn;
-                }
-            }
-        }
-
-        ~BattleSequence(){
-
-        }
-
-
+        BattleSequence(const std::unique_ptr<Player>& playerArgument, const std::unique_ptr<Character>& characterArgument);
+        void playerMove();
+        void mainBattle();
+        ~BattleSequence();
 };
 class GameState{
     private:
@@ -197,138 +72,9 @@ class GameState{
         std::unique_ptr<Player> thisPlayer;
     public:
 
-        GameState(){
-            RandomNumber = std::make_unique<RandomGenerator>();
-            thisPlayer = std::make_unique<Player>();
-
-        }
-
-        void gameAction1(){
-            setNonBlockingInput();
-            try {
-                while (true) {
-                    terminalClear(); // Clear screen at start of each frame/loop iteration
-
-                    std::cout << "------------------------------------------" << std::endl;
-                    std::cout << "Welcome!" << std::endl;
-                    std::cout << "Press 'W' to Walk, 'I' to view Inventory, 'Q' to Quit." << std::endl;
-                    std::cout << "------------------------------------------" << std::endl;
-
-                    char input_char = getNonBlockingChar(); // Check for input non-blockingly
-
-                    if (input_char != 0) { // If a key was pressed
-                        input_char = toupper(input_char); // Convert to uppercase for consistent checking
-
-                        if (input_char == 'W') {
-                            std::cout << "You chose to walk!" << std::endl;
-                            int chance = RandomNumber->randomGenerator();
-                            if (chance <= 40){
-                                int character = RandomNumber->randomGenerator();
-                                if (character < 30){
-                                    std::unique_ptr<Character> newEnemy = std::make_unique<Knight>();
-                                    std::cout << "You have encountered a new enemy Knight! Prepare for battle!" << std::endl;
-                                    std::this_thread::sleep_for(std::chrono::seconds(2));
-                                    // You'd initiate a Battle sequence here, e.g.,
-                                    // Battle currentBattle(*thisPlayer, std::move(newEnemy));
-                                    // bool playerWon = currentBattle.startBattle();
-                                }
-                                else if (character <= 60){
-                                    std::unique_ptr<Character> newEnemy = std::make_unique<Mage>();
-                                    std::cout << "You have encountered a new enemy Mage! Prepare for battle!" << std::endl;
-                                    std::this_thread::sleep_for(std::chrono::seconds(1));
-                                    std::unique_ptr<BattleSequence> battleStart = std::make_unique<BattleSequence>(thisPlayer, newEnemy);
-                                    battleStart->mainBattle();
-                                    // Battle currentBattle(*thisPlayer, std::move(newEnemy));
-                                    // bool playerWon = currentBattle.startBattle();
-                                }
-                            }
-                            else if (chance <= 60){
-                                Items thisItem = RandomNumber->randomItem();
-                                thisPlayer->addInventory(thisItem, 1);
-                                std::cout << "You found a " << thisPlayer->inventoryString(thisItem) << "!" << std::endl;
-                                std::this_thread::sleep_for(std::chrono::seconds(1)); // Pause to show message
-                            }
-                            else{
-                                std::cout << "You walked and found nothing." << std::endl;
-                                std::this_thread::sleep_for(std::chrono::seconds(1)); // Pause to show message
-                            }
-                        } else if (input_char == 'I') {
-                            std::cout << "Viewing Inventory:" << std::endl;
-                            thisPlayer->viewInventory();
-                            std::this_thread::sleep_for(std::chrono::seconds(3)); // Pause to let user view inventory
-                        } else if (input_char == 'Q') {
-                            std::cout << "Exiting game..." << std::endl;
-                            break; // Exit the loop
-                        } else {
-                            std::cout << "Invalid input. Press 'W', 'I', or 'Q'." << std::endl;
-                            std::this_thread::sleep_for(std::chrono::seconds(1));
-                        }
-                    } else {
-                        // No key pressed, so do continuous background tasks or idle animation
-                        // std::cout << "Waiting for input..." << std::endl; // For debugging, remove in final game
-                        std::this_thread::sleep_for(std::chrono::milliseconds(50)); // Short delay to prevent busy-looping
-                    }
-                } // end while true
-            } catch (...) {
-                // Catch any unexpected exceptions to ensure terminal is restored
-                restoreBlockingInput();
-                throw; // Re-throw the exception
-            }
-
-            restoreBlockingInput(); // Restore terminal settings when loop exits
-        }
-
-        void gameAction(){
-            while (true ){
-                std::cout << "To walk, please enter 1!" << std::endl;
-                std::cout << "Please enter your option: ";
-                int x;
-                std::cin >> x;
-                if (x == 1){
-                    int chance = RandomNumber->randomGenerator();
-                    if (chance <= 40){
-                        int character = RandomNumber->randomGenerator();
-                        if (character < 30){
-                            std::unique_ptr<Character> newEnemy = std::make_unique<Knight>();
-                            std::cout << "You have encountered a new enemy Knight! Prepare for battle!" << std::endl;
-                            std::this_thread::sleep_for(std::chrono::seconds(2));
-                            terminalClear();
-                            continue;
-                        }
-                        else if (character <= 60){
-                            std::unique_ptr<Character> newEnemy = std::make_unique<Mage>();
-                            std::cout << "You have encountered a new enemey Mage! Prepare for battle!" << std::endl;
-                            std::this_thread::sleep_for(std::chrono::seconds(1));
-                            terminalClear();
-                            continue;
-                    }
-                    }
-                    else if (chance <= 60){
-                        enum Items thisItem = RandomNumber->randomItem();
-                        thisPlayer->addInventory(thisItem, 1);
-                        thisPlayer->viewInventory();
-                        terminalClear();
-                        continue;
-                    }      
-                    else{
-                        terminalClear();
-                        continue;
-                    }
-
-                }
-            }
-    }
-        void gameBegin(){
-            std::cout << "Welcome to Jake Takahashi's minigame! Please enter what you would like to do! " << std::endl;
-            std::cout << "To begin the game, please enter 1: " << std::endl;
-            std::cout << "Please enter your option: ";
-            int x;
-            std::cin >> x;
-            if (x == 1){
-                    terminalClear();
-                    gameAction1();
-            }
-        }
+        GameState();
+        void gameAction();
+        void gameBegin();
 };
 
 
