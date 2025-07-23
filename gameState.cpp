@@ -92,6 +92,13 @@ void Player::modifyHealth(int healthFactor){
 
 bool Player::run(){
     int runChance = randomNumber->randomGenerator();
+    if (runChance < 30){
+        return true;
+    }
+    else{
+        return false;
+    }
+    return false;
     
 }
 
@@ -124,6 +131,13 @@ BattleSequence::BattleSequence(const std::unique_ptr<Player>& playerArgument, co
     std::cout << "Battle Sequence initiated " << std::endl;
     randomNumber = new RandomGenerator();
 }
+
+void BattleSequence::enemyMove(turnState& playerTurn){  
+    std::cout << "Enemy has moved!" << std::endl;
+    std::this_thread::sleep_for(std::chrono::seconds(2));
+    terminalClear();
+    playerTurn = turnState::playerTurn;
+}
 void BattleSequence::playerMove(turnState& playerTurn) {
     setNonBlockingInput();
     try {
@@ -139,6 +153,7 @@ void BattleSequence::playerMove(turnState& playerTurn) {
                     if (thisCharacter->getHealth() <= 0){
                         playerTurn = turnState::gameOver;
                     }
+                    playerTurn = turnState::enemyTurn;
                     return;
                 }
                 else if (input_char == 'R'){
@@ -149,6 +164,12 @@ void BattleSequence::playerMove(turnState& playerTurn) {
                         terminalClear();
                         playerTurn = turnState::gameOver;
                         return;
+                    }
+                    else{
+                        std::cout << "Too slow! Could not run away! " << std::endl;
+                        std::this_thread::sleep_for(std::chrono::seconds(2));
+                        terminalClear();
+                        playerTurn = turnState::enemyTurn;
                     }
                 }
             }
@@ -166,13 +187,20 @@ void BattleSequence::playerMove(turnState& playerTurn) {
 void BattleSequence::mainBattle() {
     enum turnState myGame = turnState::playerTurn;
     while (myGame != turnState::gameOver){
-        playerMove(myGame);
-        if (myGame == gameOver){
-            break;
+        if (myGame == turnState::playerTurn){
+            playerMove(myGame);
+            if (myGame == turnState::gameOver){
+                break;
+            }
+            terminalClear();
         }
-        terminalClear();
-        std::cout << "Enemy has moved!" << std::endl;
-        std::this_thread::sleep_for(std::chrono::seconds(2));
+        else if (myGame == turnState::enemyTurn){
+            enemyMove(myGame);
+            if (myGame == turnState::gameOver){
+                break;
+            }
+            terminalClear();
+        }
     }
 }
 
