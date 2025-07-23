@@ -46,6 +46,7 @@ class Player{
         void viewInventory();
         void modifyHealth(int healthFactor);
         void attack(Character* character);
+        bool run();
 };
 
 class BattleSequence{
@@ -61,7 +62,7 @@ class BattleSequence{
 
     public:
         BattleSequence(const std::unique_ptr<Player>& playerArgument, const std::unique_ptr<Character>& characterArgument);
-        void playerMove();
+        void playerMove(turnState& playerTurn);
         void mainBattle();
         ~BattleSequence();
 };

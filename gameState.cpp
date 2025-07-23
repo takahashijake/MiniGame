@@ -90,6 +90,11 @@ void Player::modifyHealth(int healthFactor){
     health = health - healthFactor;
 }
 
+bool Player::run(){
+    int runChance = randomNumber->randomGenerator();
+    
+}
+
 void Player::attack(Character* character){
     std::cout << "Attacked " << character->getName() << std::endl;
     if (character->getShieldState() == ShieldState::up){
@@ -99,11 +104,16 @@ void Player::attack(Character* character){
         int chance = randomNumber->randomGenerator();
         if (chance <= 30){
             std::cout << "Attack Missed" << std::endl;
+            std::this_thread::sleep_for(std::chrono::seconds(2));
         }
         else if (chance > 30){
             int damage = randomNumber->randomGenerator();
             character->modifyHealth(damage);
+            if (character->getHealth() < 0){
+
+            }
             std::cout << character->getName() << " has " << character->getHealth() << " remaining!" << std::endl;
+            std::this_thread::sleep_for(std::chrono::seconds(2));
         }
     }
 }  
@@ -114,24 +124,32 @@ BattleSequence::BattleSequence(const std::unique_ptr<Player>& playerArgument, co
     std::cout << "Battle Sequence initiated " << std::endl;
     randomNumber = new RandomGenerator();
 }
-
-void BattleSequence::playerMove() {
+void BattleSequence::playerMove(turnState& playerTurn) {
     setNonBlockingInput();
     try {
         terminalClear(); // Clear once at the start
         std::cout << "It is your turn! What would you like to do?\n";
         std::cout << "Press A to attack\n";
-
         while (true) {
             char input_char = getNonBlockingChar();
             if (input_char != 0) { // If a key was pressed
                 input_char = toupper(input_char);
                 if (input_char == 'A') {
-                    int damage = randomNumber->randomDamage();
-                    thisCharacter->modifyHealth(damage);
-                    std::cout << "Attack succeeded! " << thisCharacter->getName() << " has "<< thisCharacter->getHealth() << " health remaining!" << std::endl;
-                    std::this_thread::sleep_for(std::chrono::seconds(2));
+                    thisPlayer->attack(thisCharacter);
+                    if (thisCharacter->getHealth() <= 0){
+                        playerTurn = turnState::gameOver;
+                    }
                     return;
+                }
+                else if (input_char == 'R'){
+                    bool runSuccess = thisPlayer->run();
+                    if (runSuccess){
+                        std::cout << "Successfully ran away! " << std::endl;
+                        std::this_thread::sleep_for(std::chrono::seconds(2));
+                        terminalClear();
+                        playerTurn = turnState::gameOver;
+                        return;
+                    }
                 }
             }
             // Small delay to prevent CPU overuse
@@ -146,8 +164,12 @@ void BattleSequence::playerMove() {
     return;
 }
 void BattleSequence::mainBattle() {
-    while (true){
-        playerMove();
+    enum turnState myGame = turnState::playerTurn;
+    while (myGame != turnState::gameOver){
+        playerMove(myGame);
+        if (myGame == gameOver){
+            break;
+        }
         terminalClear();
         std::cout << "Enemy has moved!" << std::endl;
         std::this_thread::sleep_for(std::chrono::seconds(2));

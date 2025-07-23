@@ -43,3 +43,6 @@ $(TARGET): $(OBJS)
 # To run this, type 'make clean' in your terminal.
 clean:
 	rm -f $(OBJS) $(TARGET)
+
+run:
+	./a.out

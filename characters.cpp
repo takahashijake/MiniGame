@@ -62,6 +62,14 @@ bool Mage::healthFull() const {
     return health == 500;
 }
 
+void Mage::setHealth(int healthSet){
+    health = healthSet;
+}
+
+void Knight::setHealth(int healthSet){
+    health = healthSet;
+}
+
 void Mage::heal() {
     if (!healthFull()) {
         std::cout << "Health is currently at " << health << "! Now healing..." << std::endl;

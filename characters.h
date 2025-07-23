@@ -28,6 +28,7 @@ class Character{
         virtual ShieldState getShieldState() const; 
         virtual void defend() = 0;
         virtual void heal() = 0;
+        virtual void setHealth(int healthSet) = 0;
         virtual ~Character();
 };
 
@@ -39,6 +40,7 @@ public:
     bool healthFull() const;
     void heal() override;
     void defend() override;
+    void setHealth(int healthSet) override;
 };
 
 class Knight : public Character {
@@ -47,6 +49,7 @@ public:
     void attack(Character* character) override;
     void attackPlayer(Player* player) override;
     bool healthFull() const;
+    void setHealth(int healthSet) override;
     void heal() override;
     void defend() override;
 };
