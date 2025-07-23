@@ -1,5 +1,6 @@
 #include "gameState.h"
-
+#include "characters.h"
+#include "input_utils.h"
 #include <cstdlib> 
 #include <random>
 #include <chrono> 
@@ -45,7 +46,7 @@ Player::Player(){
     std::cout << "Welcome to Jake Takahashi's minigame!" << std::endl;
     std::cout << "Before we start, what would you like your name to be: ";
     std::string tempName;
-    std:getline(std::cin, tempName);
+    std::getline(std::cin, tempName);
     name = tempName; 
     health = 1000;
     terminalClear();
@@ -60,7 +61,7 @@ int Player::getHealth(){
     return health; 
 }
 
-std::string inventoryString(Items thisItem){
+std::string Player::inventoryString(Items thisItem){
     switch(thisItem){
         case Items::Sword:
             return "Sword";
@@ -90,19 +91,19 @@ void Player::modifyHealth(int healthFactor){
 }
 
 void Player::attack(Character* character){
-    std::cout << "Attacked " << character->getName(character) << std::endl;
-    if (character->getShieldState(character) == ShieldState::up){
-        std::cout << "Attack failed! " << character->getName(character)  << " has shield up! " << std::endl;
+    std::cout << "Attacked " << character->getName() << std::endl;
+    if (character->getShieldState() == ShieldState::up){
+        std::cout << "Attack failed! " << character->getName()  << " has shield up! " << std::endl;
     }
-    else if (character->getShieldState(character) == ShieldState::down){
+    else if (character->getShieldState() == ShieldState::down){
         int chance = randomNumber->randomGenerator();
         if (chance <= 30){
             std::cout << "Attack Missed" << std::endl;
         }
         else if (chance > 30){
             int damage = randomNumber->randomGenerator();
-            character->modifyHealth(character, damage);
-            std::cout << character->getName(character) << " has " << character->getHealth(character) << " remaining!" << std::endl;
+            character->modifyHealth(damage);
+            std::cout << character->getName() << " has " << character->getHealth() << " remaining!" << std::endl;
         }
     }
 }  
@@ -111,30 +112,45 @@ BattleSequence::BattleSequence(const std::unique_ptr<Player>& playerArgument, co
     thisPlayer = playerArgument.get();
     thisCharacter = characterArgument.get();
     std::cout << "Battle Sequence initiated " << std::endl;
+    randomNumber = new RandomGenerator();
 }
 
-void BattleSequence::playerMove(){
-    std::cout << "It is your turn! What would you like to do?: " << std::endl;
-    std::cout << "Press A to attack" << std::endl;
-    char inputMove;
-    std::cin >> inputMove;
-    inputMove = toupper(inputMove);
-    if (inputMove == 'A'){
-        thisPlayer->attack(thisCharacter);
+void BattleSequence::playerMove() {
+    setNonBlockingInput();
+    try {
+        terminalClear(); // Clear once at the start
+        std::cout << "It is your turn! What would you like to do?\n";
+        std::cout << "Press A to attack\n";
+
+        while (true) {
+            char input_char = getNonBlockingChar();
+            if (input_char != 0) { // If a key was pressed
+                input_char = toupper(input_char);
+                if (input_char == 'A') {
+                    int damage = randomNumber->randomDamage();
+                    thisCharacter->modifyHealth(damage);
+                    std::cout << "Attack succeeded! " << thisCharacter->getName() << " has "<< thisCharacter->getHealth() << " health remaining!" << std::endl;
+                    std::this_thread::sleep_for(std::chrono::seconds(2));
+                    return;
+                }
+            }
+            // Small delay to prevent CPU overuse
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        }
+    } catch (...) {
+        restoreBlockingInput(); // Ensure terminal is restored
+        throw; // Re-throw after cleanup
+        return;
     }
+    restoreBlockingInput();
+    return;
 }
-
-void BattleSequence::mainBattle(){
-    enum turnState turn = turnState::playerTurn;
-    while (turn != gameOver){
-        if (turn == turnState::playerTurn){
-            playerMove();
-            turn = turnState::enemyTurn;
-        }
-        else if (turn == turnState::enemyTurn){
-            std::cout << "Enemey has moved!" << std::endl;
-            turn = turnState::playerTurn;
-        }
+void BattleSequence::mainBattle() {
+    while (true){
+        playerMove();
+        terminalClear();
+        std::cout << "Enemy has moved!" << std::endl;
+        std::this_thread::sleep_for(std::chrono::seconds(2));
     }
 }
 
@@ -172,9 +188,8 @@ void GameState::gameAction(){
                                     std::unique_ptr<Character> newEnemy = std::make_unique<Knight>();
                                     std::cout << "You have encountered a new enemy Knight! Prepare for battle!" << std::endl;
                                     std::this_thread::sleep_for(std::chrono::seconds(2));
-                                    // You'd initiate a Battle sequence here, e.g.,
-                                    // Battle currentBattle(*thisPlayer, std::move(newEnemy));
-                                    // bool playerWon = currentBattle.startBattle();
+                                    std::unique_ptr<BattleSequence> battleStart = std::make_unique<BattleSequence>(thisPlayer, newEnemy);
+                                    battleStart->mainBattle();
                                 }
                                 else if (character <= 60){
                                     std::unique_ptr<Character> newEnemy = std::make_unique<Mage>();
@@ -182,8 +197,7 @@ void GameState::gameAction(){
                                     std::this_thread::sleep_for(std::chrono::seconds(1));
                                     std::unique_ptr<BattleSequence> battleStart = std::make_unique<BattleSequence>(thisPlayer, newEnemy);
                                     battleStart->mainBattle();
-                                    // Battle currentBattle(*thisPlayer, std::move(newEnemy));
-                                    // bool playerWon = currentBattle.startBattle();
+                
                                 }
                             }
                             else if (chance <= 60){
@@ -233,3 +247,4 @@ void GameState::gameBegin(){
                     gameAction();
             }
         }
+//end of gameState.cpp

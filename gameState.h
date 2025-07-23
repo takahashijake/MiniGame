@@ -12,14 +12,12 @@
 #include <memory>
 
 #include "characters.h"
-#include "input_utils.cpp"
 enum class Items{
     Sword,
     Potion,
     Key,
     Gold
 };
-void terminalClear();
 
 class RandomGenerator {
 public:
@@ -59,6 +57,7 @@ class BattleSequence{
             enemyTurn,
             gameOver
         };
+        RandomGenerator* randomNumber;
 
     public:
         BattleSequence(const std::unique_ptr<Player>& playerArgument, const std::unique_ptr<Character>& characterArgument);

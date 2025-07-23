@@ -1,5 +1,5 @@
 #include "characters.h"
-#include "gameState.h" 
+#include "gameState.h"
 
 
 Character::Character() : name("CharacterName"), health(0), CharacterShield(ShieldState::down), randomNumber(nullptr) {
@@ -128,3 +128,4 @@ void Knight::defend() {
     std::cout << std::endl;
 }
 
+//end of characters.cpp
