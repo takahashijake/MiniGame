@@ -20,7 +20,7 @@ class BattleSequence{
     public:
         BattleSequence(const std::unique_ptr<Player>& playerArgument, const std::unique_ptr<Character>& characterArgument);
         void playerMove(turnState& playerTurn);
-        void enemyMove(turnState& playerTurn);
+        void enemyMove(Character* enemy, Player* player, turnState& turn);
         void mainBattle();
         ~BattleSequence();
 };

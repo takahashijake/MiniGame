@@ -2,6 +2,7 @@
 #include "characters.h"
 #include "input_utils.h"
 #include "player.h"
+#include "battle.h"
 #include <cstdlib> 
 #include <random>
 #include <chrono> 
@@ -43,6 +44,12 @@ int RandomGenerator::randomDamage(){
     std::uniform_int_distribution<int> damage(20, 50);
     int randomDamageCount = damage(m_engine);
         return randomDamageCount;
+}
+
+int RandomGenerator::randomMove(){
+    std::uniform_int_distribution<int> move(0, 1);
+    int randomMove = move(m_engine);
+    return randomMove;
 }
 
 GameState::GameState(){

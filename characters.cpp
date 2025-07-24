@@ -41,7 +41,7 @@ void Mage::attack(Character* character) {
         std::cout << character->getName() << " has already died! Cannot attack again!" << std::endl;
     } else {
         std::cout << "Mage is attacking " << character->getName() << std::endl;
-        character->modifyHealth(80);
+        character->modifyHealth(randomNumber->randomDamage());
         if (character->getHealth() <= 0) {
             std::cout << character->getName() << " has died!" << std::endl;
         } else {
@@ -73,7 +73,8 @@ void Knight::setHealth(int healthSet){
 void Mage::heal() {
     if (!healthFull()) {
         std::cout << "Health is currently at " << health << "! Now healing..." << std::endl;
-        health += 70;
+
+        health += randomNumber->randomHeal();
         if (health > 500) health = 500; // Cap at max health
         std::cout << "Used a health potion! Health is now at " << health << std::endl;
     }
@@ -122,7 +123,7 @@ bool Knight::healthFull() const {
 void Knight::heal() {
     if (!healthFull()) {
         std::cout << "Health is currently at " << health << "! Now healing..." << std::endl;
-        health += 70;
+        health += randomNumber->randomHeal();
         if (health > 300) { // Cap at max health
             health = 300;
         }

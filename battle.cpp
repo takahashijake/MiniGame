@@ -6,9 +6,6 @@
 #include <iostream>
 #include <chrono>
 
-void terminalClear(){
-    std::cout << "\033[2J\033[1;1H" << std::endl;
-}
 
 BattleSequence::BattleSequence(const std::unique_ptr<Player>& playerArgument, const std::unique_ptr<Character>& characterArgument){
     thisPlayer = playerArgument.get();
@@ -17,11 +14,41 @@ BattleSequence::BattleSequence(const std::unique_ptr<Player>& playerArgument, co
     randomNumber = new RandomGenerator();
 }
 
-void BattleSequence::enemyMove(turnState& playerTurn){  
-    std::cout << "Enemy has moved!" << std::endl;
+void BattleSequence::enemyMove(Character* enemy, Player* player, turnState& turn){  
+    int move = randomNumber->randomMove();
+    if (move == 0){
+        int chance = randomNumber->randomGenerator();
+        if (chance < 20){
+            std::cout << enemy->getName() << "'s attack missed!" << std::endl;
+            std::this_thread::sleep_for(std::chrono::seconds(2));
+            turn = turnState::playerTurn;
+            return;
+        }
+        else if (chance >= 20 && chance < 90){
+            enemy->attackPlayer(player);
+            if (player->getHealth() <= 0){
+                turn = turnState::gameOver;
+                return;
+            }
+            std::cout << enemy->getName() << "'s attack landed! You have " << player->getHealth() << " health remaining!" << std::endl;
+            std::this_thread::sleep_for(std::chrono::seconds(2));
+            turn = turnState::playerTurn;
+            return;
+        }
+        else if (chance >= 90){
+            std::cout << enemy->getName() << " has ran away!" << std::endl;
+            std::this_thread::sleep_for(std::chrono::seconds(2));
+            turn = turnState::gameOver;
+            return;
+        }
+    }
+    else if (move == 1){
+        enemy->heal();
+        std::cout << enemy->getName() << " has healed! He has " << enemy->getHealth() << " health remaining!" << std::endl;
+    }
     std::this_thread::sleep_for(std::chrono::seconds(2));
     terminalClear();
-    playerTurn = turnState::playerTurn;
+    turn = turnState::playerTurn;
 }
 
 void BattleSequence::playerMove(turnState& playerTurn) {
@@ -41,7 +68,8 @@ void BattleSequence::playerMove(turnState& playerTurn) {
                         thisCharacter->setHealth(0);
                         playerTurn = turnState::gameOver;
                         terminalClear();
-                        std::cout << "Congragulations! You have defeated the " << thisCharacter->getName() << std::endl;
+                        std::cout << "Congragulations! You have defeated the " << thisCharacter->getName() << "!" << std::endl;
+                        std::this_thread::sleep_for(std::chrono::seconds(2));
                         return;
                     }
                     playerTurn = turnState::enemyTurn;
@@ -104,7 +132,7 @@ void BattleSequence::mainBattle() {
             terminalClear();
         }
         else if (myGame == turnState::enemyTurn){
-            enemyMove(myGame);
+            enemyMove(thisCharacter, thisPlayer, myGame);
             if (myGame == turnState::gameOver){
                 break;
             }
