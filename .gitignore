@@ -3,3 +3,4 @@ gameState.o
 input_utils.o
 main.o
 a.out 
+player.o

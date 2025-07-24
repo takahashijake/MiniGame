@@ -1,6 +1,7 @@
 #include "gameState.h"
 #include "characters.h"
 #include "input_utils.h"
+#include "player.h"
 #include <cstdlib> 
 #include <random>
 #include <chrono> 
@@ -22,10 +23,7 @@ RandomGenerator::RandomGenerator(){
 
 int RandomGenerator::randomGenerator(){
     std::uniform_int_distribution<int> distribution(1, 100);
-
     int generatedValue = distribution(m_engine);
-    std::cout << "Random number is: " << generatedValue << std::endl;
-
     return generatedValue;
 }
 
@@ -42,89 +40,6 @@ int RandomGenerator::randomDamage(){
         return randomDamageCount;
 }
 
-Player::Player(){
-    std::cout << "Welcome to Jake Takahashi's minigame!" << std::endl;
-    std::cout << "Before we start, what would you like your name to be: ";
-    std::string tempName;
-    std::getline(std::cin, tempName);
-    name = tempName; 
-    health = 1000;
-    terminalClear();
-    randomNumber = new RandomGenerator();
-}
-
-void Player::addInventory(Items thisItem, int quantity){
-    inventory[thisItem] += quantity;
-}
-
-int Player::getHealth(){
-    return health; 
-}
-
-std::string Player::inventoryString(Items thisItem){
-    switch(thisItem){
-        case Items::Sword:
-            return "Sword";
-        case Items::Potion:
-            return "Potion";
-        case Items::Key:
-            return "Key";
-        case Items::Gold:
-            return "Gold";
-    }
-}
-
- void Player::viewInventory(){
-    if (inventory.empty()){
-        std::cout << "Inventory is empty! " << std::endl;
-    }
-    else if (!inventory.empty()){
-        typedef std::unordered_map<Items, int> InventoryMapType;
-        for (InventoryMapType::iterator it = inventory.begin(); it != inventory.end(); ++it) {
-            std::cout << "Number of " << inventoryString(it->first) << " is " << it->second << std::endl;
-        }
-    }
-}
-
-void Player::modifyHealth(int healthFactor){
-    health = health - healthFactor;
-}
-
-bool Player::run(){
-    int runChance = randomNumber->randomGenerator();
-    if (runChance < 30){
-        return true;
-    }
-    else{
-        return false;
-    }
-    return false;
-    
-}
-
-void Player::attack(Character* character){
-    std::cout << "Attacked " << character->getName() << std::endl;
-    if (character->getShieldState() == ShieldState::up){
-        std::cout << "Attack failed! " << character->getName()  << " has shield up! " << std::endl;
-    }
-    else if (character->getShieldState() == ShieldState::down){
-        int chance = randomNumber->randomGenerator();
-        if (chance <= 30){
-            std::cout << "Attack Missed" << std::endl;
-            std::this_thread::sleep_for(std::chrono::seconds(2));
-        }
-        else if (chance > 30){
-            int damage = randomNumber->randomGenerator();
-            character->modifyHealth(damage);
-            if (character->getHealth() < 0){
-
-            }
-            std::cout << character->getName() << " has " << character->getHealth() << " remaining!" << std::endl;
-            std::this_thread::sleep_for(std::chrono::seconds(2));
-        }
-    }
-}  
-
 BattleSequence::BattleSequence(const std::unique_ptr<Player>& playerArgument, const std::unique_ptr<Character>& characterArgument){
     thisPlayer = playerArgument.get();
     thisCharacter = characterArgument.get();
@@ -138,25 +53,32 @@ void BattleSequence::enemyMove(turnState& playerTurn){
     terminalClear();
     playerTurn = turnState::playerTurn;
 }
+
 void BattleSequence::playerMove(turnState& playerTurn) {
     setNonBlockingInput();
     try {
         terminalClear(); // Clear once at the start
         std::cout << "It is your turn! What would you like to do?\n";
-        std::cout << "Press A to attack\n";
+        std::cout << "Press A to attack, R to run away, H to heal " << std::endl;
         while (true) {
             char input_char = getNonBlockingChar();
             if (input_char != 0) { // If a key was pressed
                 input_char = toupper(input_char);
                 if (input_char == 'A') {
+                    terminalClear();
                     thisPlayer->attack(thisCharacter);
                     if (thisCharacter->getHealth() <= 0){
+                        thisCharacter->setHealth(0);
                         playerTurn = turnState::gameOver;
+                        terminalClear();
+                        std::cout << "Congragulations! You have defeated the " << thisCharacter->getName() << std::endl;
+                        return;
                     }
                     playerTurn = turnState::enemyTurn;
                     return;
                 }
                 else if (input_char == 'R'){
+                    terminalClear();
                     bool runSuccess = thisPlayer->run();
                     if (runSuccess){
                         std::cout << "Successfully ran away! " << std::endl;
@@ -170,6 +92,12 @@ void BattleSequence::playerMove(turnState& playerTurn) {
                         std::this_thread::sleep_for(std::chrono::seconds(2));
                         terminalClear();
                         playerTurn = turnState::enemyTurn;
+                        return;
+                    }
+                }
+                else if (input_char == 'H'){
+                    if (thisPlayer->inventoryContains(Items::Potion)){
+                        int x;
                     }
                 }
             }

@@ -30,25 +30,6 @@ private:
     std::mt19937 m_engine;
 };
 
-class Player{
-
-    private:
-        int health;
-        std::string name; 
-        std::unordered_map<Items, int> inventory;
-        RandomGenerator* randomNumber;
-
-    public:
-        Player();
-        void addInventory(Items thisItem, int quantity);
-        int getHealth();
-        std::string inventoryString(Items thisItem);
-        void viewInventory();
-        void modifyHealth(int healthFactor);
-        void attack(Character* character);
-        bool run();
-};
-
 class BattleSequence{
     private:
         Character* thisCharacter;
@@ -63,6 +44,7 @@ class BattleSequence{
     public:
         BattleSequence(const std::unique_ptr<Player>& playerArgument, const std::unique_ptr<Character>& characterArgument);
         void playerMove(turnState& playerTurn);
+        void enemyMove(turnState& playerTurn);
         void mainBattle();
         ~BattleSequence();
 };

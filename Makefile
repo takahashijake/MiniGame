@@ -13,7 +13,7 @@ CXXFLAGS = -std=c++14 -Wall -Wextra -pedantic -g
 TARGET = a.out
 
 # Define the source files
-SRCS = main.cpp input_utils.cpp characters.cpp gameState.cpp
+SRCS = main.cpp input_utils.cpp characters.cpp gameState.cpp player.cpp
 
 # Automatically generate the list of object files from the source files
 # (e.g., main.cpp -> main.o)
