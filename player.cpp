@@ -20,6 +20,9 @@ void Player::addInventory(Items thisItem, int quantity){
     inventory[thisItem] += quantity;
 }
 
+void Player::subtractInventory(Items thisItem){
+    inventory[thisItem]--;
+}
 int Player::getHealth(){
     return health; 
 }
@@ -91,3 +94,9 @@ void Player::attack(Character* character){
         }
     }
 }  
+
+void Player::heal(){
+    int randomhealth = randomNumber->randomHeal();
+    Player::modifyHealth(randomhealth);
+    Player::subtractInventory(Items::Potion);
+}

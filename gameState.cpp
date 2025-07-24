@@ -34,6 +34,11 @@ Items RandomGenerator::randomItem(){
     return random;
 }
 
+int RandomGenerator::randomHeal(){
+    std::uniform_int_distribution<int> health(40, 100);
+    int randomHealth = health(m_engine);
+    return randomHealth;
+}
 int RandomGenerator::randomDamage(){
     std::uniform_int_distribution<int> damage(20, 50);
     int randomDamageCount = damage(m_engine);
@@ -96,8 +101,19 @@ void BattleSequence::playerMove(turnState& playerTurn) {
                     }
                 }
                 else if (input_char == 'H'){
+                    terminalClear();
                     if (thisPlayer->inventoryContains(Items::Potion)){
-                        int x;
+                        thisPlayer->heal();
+                        std::cout << "Healed successfully! Have " << thisPlayer->getHealth() << " remaining!" << std::endl;
+                        std::this_thread::sleep_for(std::chrono::seconds(2));
+                        playerTurn = turnState::enemyTurn;
+                        return;
+                    }
+                    else if (!thisPlayer->inventoryContains(Items::Potion)){
+                        std::cout << "Cannot heal! You do not have any potions!" << std::endl;
+                        std::this_thread::sleep_for(std::chrono::seconds(2));
+                        playerTurn = turnState::enemyTurn;
+                        return;
                     }
                 }
             }

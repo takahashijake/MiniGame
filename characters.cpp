@@ -1,6 +1,6 @@
 #include "characters.h"
 #include "gameState.h"
-
+#include "player.h"
 
 Character::Character() : name("CharacterName"), health(0), CharacterShield(ShieldState::down), randomNumber(nullptr) {
 

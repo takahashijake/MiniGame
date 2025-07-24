@@ -19,6 +19,7 @@ class Player{
     public:
         Player();
         void addInventory(Items thisItem, int quantity);
+        void subtractInventory(Items thisItem);
         int getHealth();
         std::string inventoryString(Items thisItem);
         void viewInventory();
@@ -26,6 +27,7 @@ class Player{
         void attack(Character* character);
         bool inventoryContains(Items thisItem);
         bool run();
+        void heal();
 };
 
 #endif 

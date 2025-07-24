@@ -12,6 +12,8 @@
 #include <memory>
 
 #include "characters.h"
+class Player;
+
 enum class Items{
     Sword,
     Potion,
@@ -25,6 +27,7 @@ public:
     int randomGenerator();
     Items randomItem();
     int randomDamage();
+    int randomHeal();
 
 private:
     std::mt19937 m_engine;
