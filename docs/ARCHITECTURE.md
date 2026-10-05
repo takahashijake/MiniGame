@@ -1,70 +1,60 @@
 # Architecture
 
-MiniGame is organized around one reusable C++ gameplay state machine with two presentation adapters: a native CLI and a browser/WebAssembly frontend.
+MiniGame has one C++ domain engine and two presentation adapters.
 
-## Core components
+## GameEngine
 
-- **GameEngine** is the product-facing domain API. It owns the current Player, Progression, active Character encounter, RandomSource, phase, and latest event message. Every user action advances the engine by at most one gameplay turn.
-- **Player** owns health, inventory, Potion consumption, and player attack damage.
-- **Character** is the polymorphic enemy base. Knight, Mage, and Dragon define distinct health, damage, and healing behavior.
-- **Progression** owns normal-victory count, merchant pricing, the boss gate, and final-boss completion.
-- **RandomSource** is the randomness boundary. RandomGenerator is the production implementation; tests inject deterministic sequences.
-- **GameState** is now only a native terminal adapter. It translates keyboard/menu input into GameEngine commands and renders GameSnapshot values.
-- **web_bindings.cpp** exposes GameEngine to JavaScript through Emscripten Embind.
-- **web/app.js** contains view state and DOM rendering only; it does not implement combat or progression rules.
+GameEngine owns:
 
-## Why the engine changed
+- Player and equipment state;
+- Progression and boss-gate state;
+- active enemy encounter;
+- game phase;
+- run seed;
+- RandomSource;
+- latest event message; and
+- persistence serialization/restoration.
 
-The earlier BattleSequence owned an entire blocking stdin/stdout battle. That worked for a terminal prototype but could not support a GUI/browser client without duplicating gameplay.
+Each frontend sends a semantic command such as walk, attack, heal, run, buy:shield, or boss. The engine performs one bounded transition and exposes a GameSnapshot.
 
-GameEngine changes the interaction contract from:
+## Persistence boundary
 
-~~~text
-start battle -> block until battle finishes -> return
-~~~
+Production randomness uses std::mt19937. RandomGenerator can serialize and restore its internal state.
 
-to:
+GameEngine save data includes the original seed plus the live RNG state, player health/inventory, progression, phase, active enemy/HP, boss-battle state, and message. That means loading resumes the same future random sequence.
 
-~~~text
-frontend action -> one engine transition -> snapshot -> render
-~~~
+The browser stores the opaque save string in localStorage. The CLI writes the same engine save format to .minigame-save.
 
-That makes the C++ core usable from a terminal, browser, test harness, or future desktop GUI.
+## Frontends
 
-## State flow
+### Native
 
-The engine has four externally visible phases:
+GameState translates terminal commands into GameEngine actions and renders GameSnapshot. It also provides file save/load and optional seeded startup.
 
-1. **exploring** — walk, inspect inventory, buy items, or challenge the gate;
-2. **battle** — attack, heal, or run;
-3. **defeat** — terminal loss state;
-4. **victory** — terminal win state.
+### Browser
 
-A GameSnapshot contains all presentation-safe state needed by either frontend. The web bridge additionally serializes the snapshot to JSON for JavaScript.
+web_bindings.cpp exposes GameEngine through Emscripten/Embind.
 
-## Browser boundary
+app.js renders state, handles controls and keyboard shortcuts, stores autosaves, restores Continue Run, and registers the offline service worker. It does not implement gameplay rules.
 
-The Emscripten target creates a `GameEngine` class in JavaScript with three operations:
+## Web delivery
 
-- `perform(command)`
-- `reset(playerName)`
-- `stateJson()`
+The Emscripten build emits minigame.js and minigame.wasm beside the static frontend.
 
-The JavaScript frontend dispatches semantic commands such as `walk`, `attack`, `buy:sword`, and `boss`. It then renders the returned state. There is no duplicated damage, loot, merchant, or boss-gate logic in JavaScript.
+A service worker caches the application shell for offline replay after the first successful load.
 
-## Build graph
+The Deploy Web Product workflow builds that bundle from main and deploys web-dist through GitHub Pages.
 
-Native:
+## Dependency direction
 
 ~~~text
-minigame_core -> minigame (main.cpp + game_state.cpp)
-             -> minigame_tests
+Player / Character / Progression / RandomSource
+                    ↓
+                GameEngine
+               ↙          ↘
+        Native GameState   Emscripten bindings
+                                ↓
+                          Browser frontend
 ~~~
 
-Web:
-
-~~~text
-minigame_core -> minigame_web (web_bindings.cpp)
-             -> minigame.js + minigame.wasm
-             + web static assets -> web-dist/
-~~~
+Tests link directly against the engine/core and inject deterministic randomness where needed.

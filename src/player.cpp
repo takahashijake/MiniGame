@@ -31,8 +31,19 @@ bool Player::alive() const noexcept {
     return health_ > 0;
 }
 
+int Player::defense() const noexcept {
+    return hasItem(Item::Shield) ? kShieldReduction : 0;
+}
+
 void Player::takeDamage(int amount) {
-    health_ = std::max(0, health_ - std::max(0, amount));
+    receiveDamage(amount);
+}
+
+int Player::receiveDamage(int amount) {
+    const int mitigated = std::max(0, std::max(0, amount) - defense());
+    const int previous = health_;
+    health_ = std::max(0, health_ - mitigated);
+    return previous - health_;
 }
 
 int Player::heal(int amount) {

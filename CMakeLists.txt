@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(MiniGame VERSION 1.1.0 LANGUAGES CXX)
+project(MiniGame VERSION 1.2.0 LANGUAGES CXX)
 
 option(MINIGAME_BUILD_TESTS "Build MiniGame tests" ON)
 option(MINIGAME_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" OFF)

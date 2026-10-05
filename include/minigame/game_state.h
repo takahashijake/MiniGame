@@ -19,6 +19,8 @@ private:
     void runExplorationTurn();
     void runBattleTurn();
     void runMerchant();
+    void saveGame();
+    void loadGame();
     char readChoice() const;
 
     std::istream& input_;

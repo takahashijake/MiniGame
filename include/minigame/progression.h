@@ -29,6 +29,7 @@ public:
     bool bossAvailable(const Player& player) const;
     bool openBossGate(Player& player);
     void recordBossDefeat() noexcept;
+    void restore(int victories, bool gateOpened, bool bossDefeated) noexcept;
 
 private:
     int victories_{0};

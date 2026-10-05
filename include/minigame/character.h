@@ -42,6 +42,19 @@ public:
     int healAmount(RandomSource& random) const override;
 };
 
+class Rogue final : public Character {
+public:
+    Rogue();
+    int attackDamage(RandomSource& random) const override;
+};
+
+class Golem final : public Character {
+public:
+    Golem();
+    int attackDamage(RandomSource& random) const override;
+    int healAmount(RandomSource& random) const override;
+};
+
 class Dragon final : public Character {
 public:
     Dragon();

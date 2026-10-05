@@ -1,52 +1,36 @@
 # MiniGame
 
-[![CI](https://github.com/takahashijake/MiniGame/actions/workflows/ci.yml/badge.svg)](https://github.com/takahashijake/MiniGame/actions/workflows/ci.yml)
+MiniGame is a turn-based C++ adventure shipped as both a native terminal application and a browser game. The browser edition runs the same C++ gameplay engine through WebAssembly rather than reimplementing game rules in JavaScript.
 
-MiniGame is a turn-based C++ adventure that now ships as both a native terminal game and a browser product. The browser edition is not a JavaScript rewrite: the same C++ gameplay engine is compiled to WebAssembly with Emscripten and driven by a responsive HTML/CSS/JavaScript frontend.
+## v1.2
 
-## Product surfaces
+The project now includes:
 
-### Browser edition
+- persistent runs: browser autosave/Continue and native save/load;
+- full RNG continuity: saves preserve the live std::mt19937 state;
+- optional 32-bit seeded runs for reproducible encounters and rolls;
+- Knight, Mage, Rogue, and Golem normal enemies;
+- Sword offense and Shield damage mitigation;
+- combat, loot, healing shrine, and quiet-road exploration events;
+- a 180 HP Dragon that cannot be fled and enrages below half health;
+- shared C++ GameEngine rules across CLI and browser;
+- Linux/macOS/Windows tests, sanitizers, and a real Emscripten build.
 
-The web client provides a full dashboard for:
+## Browser build
 
-- exploration and random encounters;
-- live player/enemy health;
-- turn-by-turn combat;
-- inventory and progression state;
-- merchant purchases;
-- boss-gate progress;
-- recent event history;
-- keyboard shortcuts; and
-- new-run/reset flow.
+Install Emscripten, then:
 
-All gameplay state transitions happen inside `minigame::GameEngine`, compiled from C++ to `minigame.wasm`.
+~~~sh
+emcmake cmake -S . -B build-web -DMINIGAME_BUILD_TESTS=OFF
+cmake --build build-web --target minigame_web
+python3 -m http.server 8080 --directory build-web/web-dist
+~~~
 
-### Native CLI
+Open http://localhost:8080.
 
-The terminal application remains supported and now uses the exact same turn-by-turn `GameEngine` as the web client. This keeps combat, economy, progression, and win/loss rules consistent across both frontends.
+The browser frontend exposes combat, exploration, merchant controls, equipment/progression state, run seed, autosave status, and Continue saved run. All gameplay decisions remain in C++.
 
-## Gameplay
-
-Explore the road, defeat Knights and Mages, collect loot, earn Gold, and use the travelling merchant to prepare for the final encounter.
-
-To complete a run:
-
-1. win three normal battles;
-2. obtain a Key by exploration or purchase;
-3. open the ancient boss gate; and
-4. defeat the Dragon.
-
-Items have concrete roles:
-
-- **Potion** restores 25–45 HP.
-- **Sword** permanently adds 8 attack damage.
-- **Gold** buys equipment at the travelling merchant.
-- **Key** opens the Dragon gate.
-
-## Build the native application
-
-Requirements: CMake 3.16+ and a C++17 compiler.
+## Native build
 
 ~~~sh
 cmake -S . -B build -DMINIGAME_BUILD_TESTS=ON
@@ -55,82 +39,57 @@ ctest --test-dir build --output-on-failure
 ./build/minigame
 ~~~
 
-Or:
+The CLI asks for an optional seed. During exploration, S saves and L loads .minigame-save; combat can also be saved.
 
-~~~sh
-make test
-make run
-~~~
+## Gameplay
 
-## Build the browser application
+Win three normal battles, secure a Key, open the gate, and defeat the Dragon.
 
-Install the Emscripten SDK so `emcmake` and `em++` are available, then run:
+| Enemy | Role |
+| --- | --- |
+| Knight | balanced fighter |
+| Mage | lighter health, stronger healing |
+| Rogue | 65 HP glass cannon |
+| Golem | 125 HP tank |
+| Dragon | 180 HP boss; enrages below half health |
 
-~~~sh
-emcmake cmake -S . -B build-web -DMINIGAME_BUILD_TESTS=OFF
-cmake --build build-web --target minigame_web
-~~~
+| Item | Effect | Price |
+| --- | --- | ---: |
+| Potion | restore 25–45 HP | 3 Gold |
+| Key | opens boss gate | 6 Gold |
+| Sword | +8 attack damage | 8 Gold |
+| Shield | -5 incoming damage | 10 Gold |
 
-The complete static product is emitted to:
+## Deterministic runs and saves
 
-~~~text
-build-web/web-dist/
-├── index.html
-├── styles.css
-├── app.js
-├── minigame.js
-└── minigame.wasm
-~~~
+Every production run has a visible 32-bit seed. The same seed plus the same commands yields the same RNG sequence.
 
-Serve that directory over HTTP. For example:
+The save format stores player state, inventory, progression, encounter state, phase, message, original seed, and the live RNG engine state. Loading therefore resumes the next random transition exactly rather than restarting the sequence.
 
-~~~sh
-python3 -m http.server 8080 --directory build-web/web-dist
-~~~
-
-Then open `http://localhost:8080`.
-
-The browser must be served over HTTP rather than opened directly from `file://` because the WebAssembly runtime is fetched as a separate asset.
+The browser stores this C++ save blob in localStorage. The CLI stores the same engine state in .minigame-save.
 
 ## Architecture
 
 ~~~text
 include/minigame/
-  game_engine.h      shared state-machine API
-  player.h           player health and inventory
-  character.h        Knight, Mage, Dragon hierarchy
-  progression.h      rewards, merchant, boss gate
-  random.h           production/test randomness seam
+  game_engine.h      state machine + persistence API
+  player.h           combat, equipment, inventory
+  character.h        enemy hierarchy
+  progression.h      rewards, merchant, gate
+  random.h           serializable RNG abstraction
 
 src/
-  game_engine.cpp    gameplay orchestration used by every frontend
-  game_state.cpp     native terminal adapter
-  web_bindings.cpp   Emscripten/Embind adapter
-  ...
+  game_engine.cpp    gameplay, encounters, saves, seeds
+  game_state.cpp     terminal adapter + file persistence
+  web_bindings.cpp   Emscripten bridge
 
 web/
-  index.html         browser application shell
-  styles.css         responsive product UI
-  app.js             rendering and user interaction
+  index.html
+  styles.css
+  app.js             UI + local autosave
 
 tests/
-  test_core.cpp      deterministic engine and regression tests
+  test_core.cpp
 ~~~
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the state-flow design and [docs/WEB.md](docs/WEB.md) for the WebAssembly/frontend contract.
-
-## Verification
-
-CI runs:
-
-- warning-as-error native builds/tests on Ubuntu, macOS, and Windows;
-- AddressSanitizer + UndefinedBehaviorSanitizer tests on Linux;
-- JavaScript syntax validation;
-- an Emscripten WebAssembly build; and
-- bundle assertions for the generated browser product.
-
-Tagged releases package all three native targets plus the browser bundle.
-
-## History
-
-The project began in July 2025 as a C++ fundamentals exercise. Version 1.0 modernized the repository and added a complete adventure progression loop. Version 1.1 turns that engine into a concrete multi-frontend product while retaining C++ as the single source of gameplay truth.
+See docs/ARCHITECTURE.md, docs/GAMEPLAY.md, and docs/WEB.md.

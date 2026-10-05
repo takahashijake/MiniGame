@@ -1,75 +1,40 @@
 # Web Product
 
-The MiniGame browser edition is a static application powered by the C++ core compiled to WebAssembly.
+The browser edition is a static application powered by the shared C++ GameEngine compiled to WebAssembly.
 
 ## Build
-
-With Emscripten installed:
 
 ~~~sh
 emcmake cmake -S . -B build-web -DMINIGAME_BUILD_TESTS=OFF
 cmake --build build-web --target minigame_web
-~~~
-
-The build copies the frontend assets and generated runtime into `build-web/web-dist`.
-
-Serve it locally:
-
-~~~sh
 python3 -m http.server 8080 --directory build-web/web-dist
 ~~~
 
-## Frontend responsibilities
+## WebAssembly API
 
-The browser layer is intentionally thin. It handles:
+The Emscripten bridge exposes:
 
-- button and keyboard input;
-- responsive rendering;
-- health/progression bars;
-- inventory and merchant presentation;
-- event-log history; and
-- new-run UI.
+- GameEngine(playerName)
+- GameEngine(playerName, seed)
+- perform(command)
+- reset(playerName)
+- resetSeeded(playerName, seed)
+- stateJson()
+- saveState()
+- loadState(save)
 
-It does **not** calculate damage, decide loot, mutate inventory, price merchant items, select enemies, or decide whether the boss is unlocked. Those rules live in C++.
+JavaScript owns DOM rendering, controls, localStorage, event history, and run setup. Damage, defense, enemy selection, enemy AI, loot, merchant pricing, boss enrage, progression, save structure, and RNG state remain in C++.
 
-## JavaScript-to-C++ contract
+## Autosave
 
-Emscripten exposes `GameEngine` through Embind.
+After each engine action, the browser stores the opaque C++ save blob under a versioned localStorage key. Reloading enables Continue saved run.
 
-~~~js
-const wasm = await createMiniGameModule();
-const game = new wasm.GameEngine("Ada");
+The save includes serialized std::mt19937 state, so the next random roll is preserved.
 
-game.perform("walk");
-const state = JSON.parse(game.stateJson());
-~~~
+## Seeded runs
 
-Supported semantic commands include:
-
-- `walk`
-- `inventory`
-- `boss`
-- `attack`
-- `heal`
-- `run`
-- `buy:potion`
-- `buy:sword`
-- `buy:key`
+The new-run dialog accepts an optional seed from 0 through 4294967295. The active seed is displayed in the HUD.
 
 ## Deployment
 
-The contents of `web-dist` are ordinary static assets and can be hosted on GitHub Pages, Cloudflare Pages, Netlify, S3/CloudFront, or any static web server that serves `.wasm` files.
-
-No backend service or database is required for the current single-player session model. Game state lives in WebAssembly memory for the life of the browser tab.
-
-## Future extensions
-
-The GameEngine boundary makes several future features straightforward without changing frontend ownership of rules:
-
-- save/load serialization;
-- multiple encounter types;
-- equipment slots;
-- achievements;
-- richer animation/audio;
-- deterministic seeds and shareable runs; and
-- an Electron/Tauri desktop wrapper around the same web bundle.
+The generated web-dist directory is static and can be hosted by GitHub Pages, Cloudflare Pages, Netlify, S3/CloudFront, or any server that serves WebAssembly.

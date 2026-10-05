@@ -5,6 +5,7 @@ namespace minigame {
 
 enum class Item {
     Sword,
+    Shield,
     Potion,
     Key,
     Gold,
@@ -14,6 +15,8 @@ inline const char* itemName(Item item) noexcept {
     switch (item) {
         case Item::Sword:
             return "Sword";
+        case Item::Shield:
+            return "Shield";
         case Item::Potion:
             return "Potion";
         case Item::Key:

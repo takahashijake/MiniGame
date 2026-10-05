@@ -47,7 +47,9 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y emscripten
       - name: Check frontend JavaScript
-        run: node --check web/app.js
+        run: |
+          node --check web/app.js
+          node --check web/sw.js
       - name: Configure WebAssembly build
         run: emcmake cmake -S . -B build-web -DMINIGAME_BUILD_TESTS=OFF -DMINIGAME_WARNINGS_AS_ERRORS=ON
       - name: Build browser product
@@ -60,6 +62,8 @@ jobs:
           test -f build-web/web-dist/app.js
           test -f build-web/web-dist/minigame.js
           test -f build-web/web-dist/minigame.wasm
+          test -f build-web/web-dist/manifest.webmanifest
+          test -f build-web/web-dist/sw.js
       - name: Upload web preview
         uses: actions/upload-artifact@v4
         with:

@@ -1,8 +1,17 @@
 #include "minigame/random.h"
 
+#include <sstream>
 #include <stdexcept>
 
 namespace minigame {
+
+std::string RandomSource::serializeState() const {
+    return {};
+}
+
+bool RandomSource::restoreState(const std::string& state) {
+    return state.empty();
+}
 
 bool RandomSource::chance(int percent) {
     if (percent <= 0) {
@@ -25,6 +34,18 @@ int RandomGenerator::between(int minimum, int maximum) {
 
     std::uniform_int_distribution<int> distribution(minimum, maximum);
     return distribution(engine_);
+}
+
+std::string RandomGenerator::serializeState() const {
+    std::ostringstream output;
+    output << engine_;
+    return output.str();
+}
+
+bool RandomGenerator::restoreState(const std::string& state) {
+    std::istringstream input(state);
+    input >> engine_;
+    return !input.fail();
 }
 
 }  // namespace minigame

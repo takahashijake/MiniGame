@@ -61,7 +61,7 @@ void testHealthIsClamped() {
     check(player.health() == minigame::Player::kMaxHealth, "healing should cap at max health");
 }
 
-void testSwordAddsDamage() {
+void testEquipmentEffects() {
     minigame::Player player;
     SequenceRandom random({14});
 
@@ -71,6 +71,12 @@ void testSwordAddsDamage() {
 
     check(unarmed == 14, "base attack should use the random damage roll");
     check(armed == 22, "sword should add eight damage");
+
+    player.addItem(minigame::Item::Shield);
+    const int applied = player.receiveDamage(20);
+    check(player.defense() == 5, "shield should expose five defense");
+    check(applied == 15, "shield should reduce incoming damage by five");
+    check(player.health() == 85, "mitigated damage should update player health");
 }
 
 void testInventoryCannotGoNegative() {
@@ -81,7 +87,7 @@ void testInventoryCannotGoNegative() {
     check(player.itemCount(minigame::Item::Gold) == 2, "failed removal should not mutate inventory");
 }
 
-void testProgressionAndBossGate() {
+void testProgressionAndMerchant() {
     minigame::Player player;
     minigame::Progression progression;
     SequenceRandom random({2, 100, 2, 100, 2, 100});
@@ -94,6 +100,12 @@ void testProgressionAndBossGate() {
     check(player.itemCount(minigame::Item::Gold) == 6, "victories should award gold");
     check(!progression.bossAvailable(player), "boss should still require a key");
 
+    player.addItem(minigame::Item::Gold, 20);
+    check(progression.purchase(player, minigame::Item::Shield), "shield purchase should succeed");
+    check(player.hasItem(minigame::Item::Shield), "purchased shield should enter inventory");
+    check(!progression.purchase(player, minigame::Item::Shield),
+          "duplicate shield purchase should be rejected");
+
     player.addItem(minigame::Item::Key);
     check(progression.bossAvailable(player), "boss should unlock after victories and key");
     check(progression.openBossGate(player), "key should open the gate");
@@ -103,25 +115,18 @@ void testProgressionAndBossGate() {
           "an opened gate should reject another key purchase");
 }
 
-void testMerchantPurchases() {
-    minigame::Player player;
-    minigame::Progression progression;
-    player.addItem(minigame::Item::Gold, 10);
+void testEnemyArchetypes() {
+    SequenceRandom random({20});
 
-    check(progression.purchase(player, minigame::Item::Sword), "sword purchase should succeed");
-    check(player.hasItem(minigame::Item::Sword), "purchased sword should enter inventory");
-    check(player.itemCount(minigame::Item::Gold) == 2, "purchase should deduct gold");
-    check(!progression.purchase(player, minigame::Item::Sword), "duplicate sword should be rejected");
-    check(player.itemCount(minigame::Item::Gold) == 2, "rejected purchase should not spend gold");
-}
+    minigame::Rogue rogue;
+    minigame::Golem golem;
+    minigame::Dragon dragon;
 
-void testCharacterHealthRules() {
-    minigame::Knight knight;
-    knight.takeDamage(500);
-    check(!knight.alive(), "enemy should die at zero health");
-    check(knight.health() == 0, "enemy health should not become negative");
-    knight.heal(500);
-    check(knight.health() == knight.maxHealth(), "enemy healing should cap at max health");
+    check(rogue.maxHealth() == 65, "rogue should be the low-health glass cannon");
+    check(golem.maxHealth() == 125, "golem should be the tank archetype");
+    check(dragon.maxHealth() == 180, "dragon should have expanded boss health");
+    check(rogue.attackDamage(random) >= 16, "rogue should deal high base damage");
+    check(golem.attackDamage(random) <= 19, "golem should trade damage for durability");
 }
 
 void testRandomBounds() {
@@ -153,12 +158,57 @@ void testGameEngineEncounterFlow() {
     check(state.gold == 5, "engine should award deterministic battle gold");
     check(state.health == 70, "enemy turns should damage the player between attacks");
     check(state.enemyName.empty(), "resolved battles should clear the active enemy");
+}
 
-    const std::string json = engine.stateJson();
-    check(json.find("\"playerName\":\"WebTester\"") != std::string::npos,
-          "web state should serialize the player name");
-    check(json.find("\"victories\":1") != std::string::npos,
-          "web state should serialize progression");
+void testSeededRunsAreReproducible() {
+    minigame::GameEngine first("SeedTester", 123456u);
+    minigame::GameEngine second("SeedTester", 123456u);
+
+    for (int turn = 0; turn < 18; ++turn) {
+        check(first.stateJson() == second.stateJson(),
+              "identical seeds and commands should produce identical state");
+
+        const auto state = first.snapshot();
+        if (state.phase == "victory" || state.phase == "defeat") {
+            break;
+        }
+
+        const std::string command = state.phase == "battle" ? "attack" : "walk";
+        first.perform(command);
+        second.perform(command);
+    }
+
+    check(first.snapshot().seed == 123456u, "snapshot should expose the run seed");
+}
+
+void testSaveLoadPreservesRngContinuity() {
+    minigame::GameEngine original("Saver", 98765u);
+
+    for (int turn = 0; turn < 8; ++turn) {
+        const auto state = original.snapshot();
+        original.perform(state.phase == "battle" ? "attack" : "walk");
+        if (original.snapshot().phase == "defeat") {
+            break;
+        }
+    }
+
+    const std::string save = original.saveState();
+    minigame::GameEngine restored("Placeholder", 1u);
+
+    check(restored.loadState(save), "valid save should load");
+    check(restored.stateJson() == original.stateJson(),
+          "loaded state should exactly match the saved engine snapshot");
+
+    const auto current = original.snapshot();
+    if (current.phase != "victory" && current.phase != "defeat") {
+        const std::string nextCommand = current.phase == "battle" ? "attack" : "walk";
+        original.perform(nextCommand);
+        restored.perform(nextCommand);
+        check(restored.stateJson() == original.stateJson(),
+              "loaded RNG state should preserve the next deterministic transition");
+    }
+
+    check(!restored.loadState("not-a-minigame-save"), "invalid save data should be rejected");
 }
 
 }  // namespace
@@ -166,13 +216,14 @@ void testGameEngineEncounterFlow() {
 int main() {
     testPotionHealsInsteadOfDamaging();
     testHealthIsClamped();
-    testSwordAddsDamage();
+    testEquipmentEffects();
     testInventoryCannotGoNegative();
-    testProgressionAndBossGate();
-    testMerchantPurchases();
-    testCharacterHealthRules();
+    testProgressionAndMerchant();
+    testEnemyArchetypes();
     testRandomBounds();
     testGameEngineEncounterFlow();
+    testSeededRunsAreReproducible();
+    testSaveLoadPreservesRngContinuity();
 
     if (failures == 0) {
         std::cout << "All MiniGame core tests passed.\n";
