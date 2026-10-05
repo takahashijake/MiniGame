@@ -530,6 +530,8 @@ void GameEngine::enemyTurn() {
 
     if (!player_.alive()) {
         phase_ = GamePhase::Defeat;
+        enemy_.reset();
+        bossBattle_ = false;
         setMessage(message_ + " Your adventure ends here.");
     }
 }

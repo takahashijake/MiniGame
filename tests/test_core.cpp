@@ -181,6 +181,24 @@ void testSeededRunsAreReproducible() {
     check(first.snapshot().seed == 123456u, "snapshot should expose the run seed");
 }
 
+void testDefeatStateCanBePersisted() {
+    auto random = std::make_unique<SequenceRandom>(
+        std::vector<int>{1, 1, 14, 1, 20, 14, 1, 20, 14, 1, 20, 14, 1, 20, 14, 1, 20});
+    minigame::GameEngine engine("Doomed", std::move(random));
+
+    engine.perform("walk");
+    while (engine.snapshot().phase == "battle") {
+        engine.perform("attack");
+    }
+
+    if (engine.snapshot().phase == "defeat") {
+        minigame::GameEngine restored("Placeholder", 5u);
+        check(restored.loadState(engine.saveState()), "defeat state should be loadable");
+        check(restored.snapshot().phase == "defeat", "restored defeat should remain terminal");
+        check(restored.snapshot().enemyName.empty(), "defeat should not retain an active enemy");
+    }
+}
+
 void testSaveLoadPreservesRngContinuity() {
     minigame::GameEngine original("Saver", 98765u);
 
@@ -223,6 +241,7 @@ int main() {
     testRandomBounds();
     testGameEngineEncounterFlow();
     testSeededRunsAreReproducible();
+    testDefeatStateCanBePersisted();
     testSaveLoadPreservesRngContinuity();
 
     if (failures == 0) {
