@@ -1,10 +1,12 @@
 #include <algorithm>
 #include <iostream>
+#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "minigame/character.h"
+#include "minigame/game_engine.h"
 #include "minigame/items.h"
 #include "minigame/player.h"
 #include "minigame/progression.h"
@@ -97,6 +99,8 @@ void testProgressionAndBossGate() {
     check(progression.openBossGate(player), "key should open the gate");
     check(!player.hasItem(minigame::Item::Key), "opening the gate should consume the key");
     check(progression.bossAvailable(player), "opened gate should remain available");
+    check(!progression.purchase(player, minigame::Item::Key),
+          "an opened gate should reject another key purchase");
 }
 
 void testMerchantPurchases() {
@@ -128,6 +132,35 @@ void testRandomBounds() {
     }
 }
 
+void testGameEngineEncounterFlow() {
+    auto random = std::make_unique<SequenceRandom>(
+        std::vector<int>{1, 1, 24, 1, 10, 24, 1, 10, 24, 1, 10, 24, 5, 100});
+    minigame::GameEngine engine("WebTester", std::move(random));
+
+    engine.perform("walk");
+    auto state = engine.snapshot();
+    check(state.phase == "battle", "walking should be able to start a battle");
+    check(state.enemyName == "Knight", "deterministic encounter should spawn a Knight");
+
+    engine.perform("attack");
+    engine.perform("attack");
+    engine.perform("attack");
+    engine.perform("attack");
+
+    state = engine.snapshot();
+    check(state.phase == "exploring", "winning should return to exploration");
+    check(state.victories == 1, "engine should record a normal victory");
+    check(state.gold == 5, "engine should award deterministic battle gold");
+    check(state.health == 70, "enemy turns should damage the player between attacks");
+    check(state.enemyName.empty(), "resolved battles should clear the active enemy");
+
+    const std::string json = engine.stateJson();
+    check(json.find("\"playerName\":\"WebTester\"") != std::string::npos,
+          "web state should serialize the player name");
+    check(json.find("\"victories\":1") != std::string::npos,
+          "web state should serialize progression");
+}
+
 }  // namespace
 
 int main() {
@@ -139,6 +172,7 @@ int main() {
     testMerchantPurchases();
     testCharacterHealthRules();
     testRandomBounds();
+    testGameEngineEncounterFlow();
 
     if (failures == 0) {
         std::cout << "All MiniGame core tests passed.\n";

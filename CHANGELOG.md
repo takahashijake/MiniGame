@@ -2,6 +2,27 @@
 
 All notable changes to MiniGame are documented here.
 
+## [1.1.0] - 2026-10-05
+
+### Added
+
+- Browser product compiled from the C++ core to WebAssembly with Emscripten.
+- Responsive frontend with player/enemy HUDs, combat and exploration controls, merchant UI, progression tracker, inventory state, run log, keyboard shortcuts, and new-run flow.
+- Shared GameEngine state-machine API used by both the CLI and browser.
+- JSON snapshot bridge for the web frontend.
+- End-to-end deterministic GameEngine encounter regression test.
+- WebAssembly CI job with bundle verification and artifact upload.
+- Browser package in tagged release builds.
+- Dedicated web architecture/deployment documentation.
+
+### Changed
+
+- Native CLI now acts as a presentation adapter over GameEngine instead of owning gameplay flow.
+- Combat is turn-addressable instead of blocking inside a terminal-only BattleSequence.
+- Core library no longer depends on terminal I/O.
+- Project version advanced to 1.1.0.
+- Merchant prevents buying a redundant Key after the boss gate is already open.
+
 ## [1.0.0] - 2026-10-05
 
 ### Added

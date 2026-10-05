@@ -2,15 +2,10 @@
 #define MINIGAME_GAME_STATE_H
 
 #include <iosfwd>
-#include <memory>
 
-#include "minigame/player.h"
-#include "minigame/progression.h"
-#include "minigame/random.h"
+#include "minigame/game_engine.h"
 
 namespace minigame {
-
-class Character;
 
 class GameState {
 public:
@@ -20,20 +15,15 @@ public:
 
 private:
     void printBanner() const;
-    void printHud() const;
-    void printMenu() const;
-    void walk();
-    void showInventory() const;
-    void visitMerchant();
-    void challengeBoss();
-    void handleLoot();
-    void startBattle(std::unique_ptr<Character> enemy, bool bossBattle);
+    void printHud(const GameSnapshot& state) const;
+    void runExplorationTurn();
+    void runBattleTurn();
+    void runMerchant();
+    char readChoice() const;
 
     std::istream& input_;
     std::ostream& output_;
-    RandomGenerator random_;
-    Player player_;
-    Progression progression_;
+    GameEngine engine_;
     bool running_{true};
 };
 

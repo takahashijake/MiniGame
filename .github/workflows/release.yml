@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 jobs:
-  package:
+  native-package:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -23,8 +23,26 @@ jobs:
         run: cmake --build build --config Release
       - name: Install
         run: cmake --install build --config Release --prefix dist
-      - name: Upload package
+      - name: Upload native package
         uses: actions/upload-artifact@v4
         with:
           name: minigame-${{ runner.os }}-${{ github.ref_name }}
           path: dist/
+
+  web-package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Emscripten
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y emscripten
+      - name: Configure
+        run: emcmake cmake -S . -B build-web -DMINIGAME_BUILD_TESTS=OFF -DCMAKE_BUILD_TYPE=Release
+      - name: Build
+        run: cmake --build build-web --target minigame_web
+      - name: Upload browser package
+        uses: actions/upload-artifact@v4
+        with:
+          name: minigame-web-${{ github.ref_name }}
+          path: build-web/web-dist/

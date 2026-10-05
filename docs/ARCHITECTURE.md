@@ -1,30 +1,70 @@
 # Architecture
 
-MiniGame is split into a small reusable game core and a terminal-facing orchestration layer.
+MiniGame is organized around one reusable C++ gameplay state machine with two presentation adapters: a native CLI and a browser/WebAssembly frontend.
 
-## Components
+## Core components
 
-- Player owns player health and inventory rules. It knows how much damage the player deals and how Potions are consumed.
-- Character is the polymorphic enemy base class. Knight, Mage, and Dragon provide different health and attack/heal ranges.
-- BattleSequence owns no game entities. It coordinates turn order using references to a Player, Character, RandomSource, input stream, and output stream.
-- Progression tracks normal victories, merchant pricing, the boss gate, and final-boss completion.
-- RandomSource is the test seam for randomness. RandomGenerator is the production implementation backed by std::mt19937.
-- GameState owns the long-lived session state and terminal menu. It selects exploration events and connects battles to progression rewards.
+- **GameEngine** is the product-facing domain API. It owns the current Player, Progression, active Character encounter, RandomSource, phase, and latest event message. Every user action advances the engine by at most one gameplay turn.
+- **Player** owns health, inventory, Potion consumption, and player attack damage.
+- **Character** is the polymorphic enemy base. Knight, Mage, and Dragon define distinct health, damage, and healing behavior.
+- **Progression** owns normal-victory count, merchant pricing, the boss gate, and final-boss completion.
+- **RandomSource** is the randomness boundary. RandomGenerator is the production implementation; tests inject deterministic sequences.
+- **GameState** is now only a native terminal adapter. It translates keyboard/menu input into GameEngine commands and renders GameSnapshot values.
+- **web_bindings.cpp** exposes GameEngine to JavaScript through Emscripten Embind.
+- **web/app.js** contains view state and DOM rendering only; it does not implement combat or progression rules.
 
-## Dependency direction
+## Why the engine changed
 
-The public interfaces live under include/minigame. Implementation lives under src. The executable entry point only constructs GameState. Tests link against minigame_core and can replace RandomGenerator with deterministic RandomSource implementations.
+The earlier BattleSequence owned an entire blocking stdin/stdout battle. That worked for a terminal prototype but could not support a GUI/browser client without duplicating gameplay.
 
-This separation deliberately removes two problems from the prototype: gameplay classes no longer own heap-allocated RNG objects, and tests no longer need a real terminal or unpredictable random values.
+GameEngine changes the interaction contract from:
+
+~~~text
+start battle -> block until battle finishes -> return
+~~~
+
+to:
+
+~~~text
+frontend action -> one engine transition -> snapshot -> render
+~~~
+
+That makes the C++ core usable from a terminal, browser, test harness, or future desktop GUI.
 
 ## State flow
 
-1. GameState reads a main-menu command.
-2. Walk selects an exploration event.
-3. A combat event constructs an enemy and BattleSequence.
-4. BattleSequence returns a BattleResult.
-5. GameState turns normal victories into Progression rewards.
-6. After three victories and a Key, Progression opens the boss gate.
-7. A Dragon victory marks the run complete.
+The engine has four externally visible phases:
 
-The boss gate stays open after the Key is consumed, so fleeing from the Dragon does not require purchasing another Key.
+1. **exploring** — walk, inspect inventory, buy items, or challenge the gate;
+2. **battle** — attack, heal, or run;
+3. **defeat** — terminal loss state;
+4. **victory** — terminal win state.
+
+A GameSnapshot contains all presentation-safe state needed by either frontend. The web bridge additionally serializes the snapshot to JSON for JavaScript.
+
+## Browser boundary
+
+The Emscripten target creates a `GameEngine` class in JavaScript with three operations:
+
+- `perform(command)`
+- `reset(playerName)`
+- `stateJson()`
+
+The JavaScript frontend dispatches semantic commands such as `walk`, `attack`, `buy:sword`, and `boss`. It then renders the returned state. There is no duplicated damage, loot, merchant, or boss-gate logic in JavaScript.
+
+## Build graph
+
+Native:
+
+~~~text
+minigame_core -> minigame (main.cpp + game_state.cpp)
+             -> minigame_tests
+~~~
+
+Web:
+
+~~~text
+minigame_core -> minigame_web (web_bindings.cpp)
+             -> minigame.js + minigame.wasm
+             + web static assets -> web-dist/
+~~~
