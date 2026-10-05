@@ -52,7 +52,11 @@ bool Progression::purchase(Player& player, Item item) const {
         return false;
     }
 
-    if ((item == Item::Sword || item == Item::Key) && player.hasItem(item)) {
+    if (item == Item::Sword && player.hasItem(Item::Sword)) {
+        return false;
+    }
+
+    if (item == Item::Key && (player.hasItem(Item::Key) || gateOpened_)) {
         return false;
     }
 

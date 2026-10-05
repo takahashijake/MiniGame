@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#10141f">
+  <title>MiniGame — Web Edition</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div class="ambient ambient-one"></div>
+  <div class="ambient ambient-two"></div>
+
+  <main class="app-shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">C++ · WebAssembly</p>
+        <h1>MiniGame</h1>
+      </div>
+      <div class="topbar-actions">
+        <span id="runtimeBadge" class="runtime-badge">Loading engine…</span>
+        <button id="newGameButton" class="button button-quiet" type="button">New run</button>
+      </div>
+    </header>
+
+    <section class="hero-card">
+      <div class="hero-copy">
+        <p class="eyebrow">THE ANCIENT ROAD</p>
+        <h2 id="sceneTitle">Preparing your adventure</h2>
+        <p id="narrative" class="narrative">Loading the C++ game engine into your browser.</p>
+      </div>
+      <div class="phase-wrap">
+        <span id="phaseBadge" class="phase-badge">BOOT</span>
+      </div>
+    </section>
+
+    <section class="dashboard">
+      <article class="panel player-panel">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">ADVENTURER</p>
+            <h3 id="playerName">Adventurer</h3>
+          </div>
+          <strong id="healthText">100 / 100 HP</strong>
+        </div>
+        <div class="meter" aria-label="Player health">
+          <span id="healthBar"></span>
+        </div>
+
+        <div class="stat-grid">
+          <div class="stat">
+            <span>Gold</span>
+            <strong id="goldStat">0</strong>
+          </div>
+          <div class="stat">
+            <span>Potions</span>
+            <strong id="potionStat">0</strong>
+          </div>
+          <div class="stat">
+            <span>Victories</span>
+            <strong id="victoryStat">0 / 3</strong>
+          </div>
+        </div>
+
+        <div class="inventory-row">
+          <div id="swordChip" class="inventory-chip">⚔ Sword</div>
+          <div id="keyChip" class="inventory-chip">🗝 Key</div>
+          <div id="gateChip" class="inventory-chip">🚪 Gate</div>
+        </div>
+      </article>
+
+      <article id="enemyPanel" class="panel enemy-panel hidden">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">ENCOUNTER</p>
+            <h3 id="enemyName">Enemy</h3>
+          </div>
+          <strong id="enemyHealthText">0 / 0 HP</strong>
+        </div>
+        <div class="meter enemy-meter" aria-label="Enemy health">
+          <span id="enemyHealthBar"></span>
+        </div>
+        <div class="enemy-art" aria-hidden="true">
+          <span id="enemyGlyph">♞</span>
+        </div>
+      </article>
+
+      <article class="panel objective-panel">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">OBJECTIVE</p>
+            <h3>Reach the Dragon</h3>
+          </div>
+        </div>
+        <div id="progressSteps" class="progress-steps" aria-label="Adventure progress">
+          <div class="progress-step"><span>1</span><p>Win 3 battles</p></div>
+          <div class="progress-step"><span>2</span><p>Secure a Key</p></div>
+          <div class="progress-step"><span>3</span><p>Open the gate</p></div>
+          <div class="progress-step"><span>4</span><p>Defeat Dragon</p></div>
+        </div>
+      </article>
+    </section>
+
+    <section class="control-grid">
+      <article class="panel action-panel">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">ACTIONS</p>
+            <h3 id="actionHeading">Explore the road</h3>
+          </div>
+          <span class="shortcut-note">Keyboard shortcuts enabled</span>
+        </div>
+
+        <div id="explorationActions" class="action-buttons">
+          <button class="button button-primary" data-action="walk" type="button"><span>W</span> Explore</button>
+          <button class="button" data-action="boss" type="button"><span>B</span> Boss gate</button>
+          <button class="button" data-action="inventory" type="button"><span>I</span> Inventory</button>
+        </div>
+
+        <div id="battleActions" class="action-buttons hidden">
+          <button class="button button-danger" data-action="attack" type="button"><span>A</span> Attack</button>
+          <button class="button" data-action="heal" type="button"><span>H</span> Potion</button>
+          <button class="button" data-action="run" type="button"><span>R</span> Run</button>
+        </div>
+      </article>
+
+      <article class="panel merchant-panel">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">TRAVELLING MERCHANT</p>
+            <h3>Spend your spoils</h3>
+          </div>
+        </div>
+        <div class="shop-list">
+          <button class="shop-item" data-action="buy:potion" type="button">
+            <span class="shop-icon">✦</span>
+            <span><strong>Potion</strong><small>Restore 25–45 HP</small></span>
+            <b>3g</b>
+          </button>
+          <button class="shop-item" data-action="buy:sword" type="button">
+            <span class="shop-icon">⚔</span>
+            <span><strong>Sword</strong><small>Permanent +8 damage</small></span>
+            <b>8g</b>
+          </button>
+          <button class="shop-item" data-action="buy:key" type="button">
+            <span class="shop-icon">🗝</span>
+            <span><strong>Ancient Key</strong><small>Unlock the boss gate</small></span>
+            <b>6g</b>
+          </button>
+        </div>
+      </article>
+
+      <article class="panel log-panel">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">RUN LOG</p>
+            <h3>Recent events</h3>
+          </div>
+        </div>
+        <ol id="eventLog" class="event-log" aria-live="polite"></ol>
+      </article>
+    </section>
+  </main>
+
+  <div id="startScreen" class="modal-backdrop">
+    <form id="startForm" class="start-card">
+      <p class="eyebrow">MINIGAME // WEB EDITION</p>
+      <h2>Begin a new run</h2>
+      <p>The game logic is compiled from C++ to WebAssembly and runs locally in this tab.</p>
+      <label for="nameInput">Adventurer name</label>
+      <input id="nameInput" maxlength="24" autocomplete="off" placeholder="Adventurer">
+      <button id="startButton" class="button button-primary button-wide" type="submit" disabled>Loading C++ engine…</button>
+    </form>
+  </div>
+
+  <script src="./minigame.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>

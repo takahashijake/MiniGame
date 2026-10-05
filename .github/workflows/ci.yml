@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   build-and-test:
-    name: ${{ matrix.os }}
+    name: native-${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -37,3 +37,31 @@ jobs:
         run: cmake --build build-sanitize
       - name: Test
         run: ctest --test-dir build-sanitize --output-on-failure
+
+  webassembly:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Emscripten
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y emscripten
+      - name: Check frontend JavaScript
+        run: node --check web/app.js
+      - name: Configure WebAssembly build
+        run: emcmake cmake -S . -B build-web -DMINIGAME_BUILD_TESTS=OFF -DMINIGAME_WARNINGS_AS_ERRORS=ON
+      - name: Build browser product
+        run: cmake --build build-web --target minigame_web
+      - name: Verify web bundle
+        shell: bash
+        run: |
+          test -f build-web/web-dist/index.html
+          test -f build-web/web-dist/styles.css
+          test -f build-web/web-dist/app.js
+          test -f build-web/web-dist/minigame.js
+          test -f build-web/web-dist/minigame.wasm
+      - name: Upload web preview
+        uses: actions/upload-artifact@v4
+        with:
+          name: minigame-web-preview
+          path: build-web/web-dist/
