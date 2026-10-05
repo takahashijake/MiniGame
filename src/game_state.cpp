@@ -4,7 +4,8 @@
 #include <cctype>
 #include <cstdint>
 #include <fstream>
-#include <iostream>\n#include <iterator>
+#include <iostream>
+#include <iterator>
 #include <string>
 
 namespace minigame {
