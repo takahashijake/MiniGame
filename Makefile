@@ -1,48 +1,27 @@
-# Define the C++ compiler
-CXX = g++
+BUILD_DIR ?= build
+BUILD_TYPE ?= Debug
 
-# Define C++ compiler flags
-# -std=c++14: Specifies the C++14 standard
-# -Wall: Enables all common warnings
-# -Wextra: Enables extra warnings (more than -Wall)
-# -pedantic: Issues warnings for non-standard C++
-# -g: Includes debugging information
-CXXFLAGS = -std=c++14 -Wall -Wextra -pedantic -g
+.PHONY: all configure build run test clean format check-format
 
-# Define the name of the executable
-TARGET = a.out
+all: build
 
-# Define the source files
-SRCS = main.cpp input_utils.cpp characters.cpp gameState.cpp player.cpp battle.cpp
+configure:
+	cmake -S . -B $(BUILD_DIR) -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
 
-# Automatically generate the list of object files from the source files
-# (e.g., main.cpp -> main.o)
-OBJS = $(SRCS:.cpp=.o)
+build: configure
+	cmake --build $(BUILD_DIR) --parallel
 
-# The default target. When you run 'make', this target will be built.
-# It depends on the executable being up-to-date.
-all: $(TARGET)
+run: build
+	$(BUILD_DIR)/bin/minigame
 
-# Rule to link the object files into the final executable.
-# It depends on all the object files being compiled.
-$(TARGET): $(OBJS)
-	$(CXX) $(OBJS) -o $(TARGET) $(LDFLAGS)
+test: build
+	ctest --test-dir $(BUILD_DIR) --output-on-failure
 
-# Generic rule for compiling .cpp files into .o object files.
-# This rule will be used for each .cpp file in the SRCS list.
-# $<: The name of the prerequisite (the .cpp file)
-# $@: The name of the target (the .o file)
-%.o: %.cpp
-	$(CXX) $(CXXFLAGS) -c $< -o $@
-
-# Phony targets are targets that do not correspond to actual files.
-# This prevents make from getting confused if a file named 'clean' or 'all' exists.
-.PHONY: all clean
-
-# Rule to clean up generated files (object files and the executable).
-# To run this, type 'make clean' in your terminal.
 clean:
-	rm -f $(OBJS) $(TARGET)
+	cmake -E remove_directory $(BUILD_DIR)
 
-run:
-	./a.out
+format:
+	clang-format -i $$(find include src tests -type f \( -name '*.hpp' -o -name '*.cpp' \))
+
+check-format:
+	clang-format --dry-run --Werror $$(find include src tests -type f \( -name '*.hpp' -o -name '*.cpp' \))
