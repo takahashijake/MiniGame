@@ -1,59 +1,52 @@
 # Changelog
 
-All notable changes to MiniGame are documented here.
+## [Unreleased] — v1.2 review fixes (2026-10-06)
+
+- Make seeded RNG mapping portable between native and WebAssembly standard libraries.
+- Validate saves atomically, including flags, phase/gate invariants and complete RNG data.
+- Reject invalid native seeds; quit cleanly on EOF; allow load and quit during combat.
+- Keep the browser playable when localStorage is denied, and clear corrected seed validation.
+- Escape every JSON control character; prevent restored reward counters from overflowing.
+- Split persistence validation and browser rendering into focused helpers.
+- Preserve unrelated service-worker caches and validate the entire shell before caching.
+- Add deterministic combat, CLI, browser/WASM, RNG parity and service-worker regressions to CI.
+- Document persistence limits, offline behavior, turn costs and QA commands.
+
+## [1.2.0] - 2026-10-05
+
+### Added
+
+- Browser autosave and Continue Run backed by the C++ engine save format.
+- Native .minigame-save save/load, including combat saves.
+- Optional deterministic 32-bit run seeds.
+- RNG-state serialization for exact continuation after loading.
+- Shield equipment with permanent 5-point damage mitigation.
+- Rogue glass-cannon enemy.
+- Golem tank enemy.
+- Healing shrine exploration event.
+- Dragon phase two: 180 HP, no escape, +8 enraged damage at or below half health.
+- HUD state for seed, defense, Shield, and Dragon enrage.
+- Regression tests for seeded reproducibility, save/load RNG continuity, Shield behavior, and new enemies.
+
+### Changed
+
+- Exploration now selects from four normal enemy archetypes.
+- Loot can award a Shield.
+- Merchant sells Shield for 10 Gold.
+- Project version is 1.2.0.
 
 ## [1.1.0] - 2026-10-05
 
-### Added
-
-- Browser product compiled from the C++ core to WebAssembly with Emscripten.
-- Responsive frontend with player/enemy HUDs, combat and exploration controls, merchant UI, progression tracker, inventory state, run log, keyboard shortcuts, and new-run flow.
-- Shared GameEngine state-machine API used by both the CLI and browser.
-- JSON snapshot bridge for the web frontend.
-- End-to-end deterministic GameEngine encounter regression test.
-- WebAssembly CI job with bundle verification and artifact upload.
-- Browser package in tagged release builds.
-- Dedicated web architecture/deployment documentation.
-
-### Changed
-
-- Native CLI now acts as a presentation adapter over GameEngine instead of owning gameplay flow.
-- Combat is turn-addressable instead of blocking inside a terminal-only BattleSequence.
-- Core library no longer depends on terminal I/O.
-- Project version advanced to 1.1.0.
-- Merchant prevents buying a redundant Key after the boss gate is already open.
+- Added browser product compiled from the C++ core to WebAssembly.
+- Added responsive frontend and shared GameEngine.
+- Added WebAssembly CI and browser release artifacts.
 
 ## [1.0.0] - 2026-10-05
 
-### Added
-
-- Adventure progression loop with battle victories and a final Dragon encounter.
-- Gold rewards and a travelling merchant.
-- Functional Sword, Key, Gold, and Potion item roles.
-- Boss gate that requires three victories and a Key.
-- Deterministic core test suite.
-- CMake build with warning-as-error and sanitizer options.
-- Cross-platform CI for Linux, macOS, and Windows.
-- Tagged-build artifact delivery workflow.
-- Architecture, gameplay, and contribution documentation.
-
-### Changed
-
-- Reorganized production code into include/minigame and src.
-- Replaced platform-specific non-blocking input with portable line-based commands.
-- Reworked combat around explicit Player, Character, BattleSequence, Progression, and RandomSource responsibilities.
-- Replaced raw RNG ownership with RAII/value ownership.
-- Improved terminal presentation with a persistent HUD, health bar, clearer commands, merchant UI, and victory condition.
-- Modernized the convenience Makefile to drive CMake.
-
-### Fixed
-
-- Potions now restore HP instead of subtracting HP.
-- Health values are clamped and cannot become negative or exceed maximum HP.
-- Inventory removal cannot create negative quantities.
-- Duplicate permanent-item purchases no longer spend Gold.
-- Removed the committed battle.o build artifact.
+- Modernized repository architecture, tests, CI/CD, docs, and terminal UX.
+- Added adventure progression, merchant, functional inventory items, and Dragon win condition.
+- Fixed Potion healing, health bounds, inventory accounting, and raw RNG ownership.
 
 ## [0.1.0] - 2025-07-24
 
-Legacy prototype baseline: walking events, Knight/Mage encounters, randomized enemy movement, inventory scaffolding, and a separated battle sequence.
+Legacy terminal prototype baseline.

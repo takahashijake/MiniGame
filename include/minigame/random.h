@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include <random>
+#include <string>
 
 namespace minigame {
 
@@ -10,6 +11,9 @@ class RandomSource {
 public:
     virtual ~RandomSource() = default;
     virtual int between(int minimum, int maximum) = 0;
+
+    virtual std::string serializeState() const;
+    virtual bool restoreState(const std::string& state);
 
     bool chance(int percent);
 };
@@ -20,6 +24,8 @@ public:
     explicit RandomGenerator(std::uint32_t seed);
 
     int between(int minimum, int maximum) override;
+    std::string serializeState() const override;
+    bool restoreState(const std::string& state) override;
 
 private:
     std::mt19937 engine_;

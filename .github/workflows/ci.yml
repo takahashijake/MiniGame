@@ -9,6 +9,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-and-test:
     name: native-${{ matrix.os }}
@@ -19,7 +23,7 @@ jobs:
         os: [ubuntu-latest, macos-latest, windows-latest]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Configure
         run: cmake -S . -B build -DMINIGAME_BUILD_TESTS=ON -DMINIGAME_WARNINGS_AS_ERRORS=ON
       - name: Build
@@ -30,7 +34,7 @@ jobs:
   sanitizers:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Configure sanitizers
         run: cmake -S . -B build-sanitize -DMINIGAME_BUILD_TESTS=ON -DMINIGAME_WARNINGS_AS_ERRORS=ON -DMINIGAME_ENABLE_SANITIZERS=ON -DCMAKE_BUILD_TYPE=Debug
       - name: Build
@@ -41,17 +45,27 @@ jobs:
   webassembly:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Install Emscripten
         run: |
           sudo apt-get update
           sudo apt-get install -y emscripten
       - name: Check frontend JavaScript
-        run: node --check web/app.js
+        run: |
+          node --check web/app.js
+          node --check web/sw.js
+          node tests/test_web.cjs
+          node tests/test_sw.cjs
       - name: Configure WebAssembly build
         run: emcmake cmake -S . -B build-web -DMINIGAME_BUILD_TESTS=OFF -DMINIGAME_WARNINGS_AS_ERRORS=ON
       - name: Build browser product
         run: cmake --build build-web --target minigame_web
+      - name: Build native replay reference
+        run: |
+          cmake -S . -B build-native -DMINIGAME_WARNINGS_AS_ERRORS=ON
+          cmake --build build-native --target minigame_replay
+      - name: Test real WebAssembly persistence and native replay parity
+        run: node tests/test_web.cjs build-web/web-dist/minigame.js ./build-native/minigame_replay
       - name: Verify web bundle
         shell: bash
         run: |
@@ -60,6 +74,8 @@ jobs:
           test -f build-web/web-dist/app.js
           test -f build-web/web-dist/minigame.js
           test -f build-web/web-dist/minigame.wasm
+          test -f build-web/web-dist/manifest.webmanifest
+          test -f build-web/web-dist/sw.js
       - name: Upload web preview
         uses: actions/upload-artifact@v4
         with:

@@ -1,75 +1,74 @@
 # Web Product
 
-The MiniGame browser edition is a static application powered by the C++ core compiled to WebAssembly.
+The browser edition is a static application powered by the shared C++ GameEngine compiled to WebAssembly.
 
 ## Build
-
-With Emscripten installed:
 
 ~~~sh
 emcmake cmake -S . -B build-web -DMINIGAME_BUILD_TESTS=OFF
 cmake --build build-web --target minigame_web
-~~~
-
-The build copies the frontend assets and generated runtime into `build-web/web-dist`.
-
-Serve it locally:
-
-~~~sh
 python3 -m http.server 8080 --directory build-web/web-dist
 ~~~
 
-## Frontend responsibilities
+## WebAssembly API
 
-The browser layer is intentionally thin. It handles:
+The Emscripten bridge exposes:
 
-- button and keyboard input;
-- responsive rendering;
-- health/progression bars;
-- inventory and merchant presentation;
-- event-log history; and
-- new-run UI.
+- GameEngine(playerName)
+- GameEngine(playerName, seed)
+- perform(command)
+- reset(playerName)
+- resetSeeded(playerName, seed)
+- stateJson()
+- saveState()
+- loadState(save)
 
-It does **not** calculate damage, decide loot, mutate inventory, price merchant items, select enemies, or decide whether the boss is unlocked. Those rules live in C++.
+JavaScript owns DOM rendering, controls, localStorage, event history, and run setup. Damage, defense, enemy selection, enemy AI, loot, merchant pricing, boss enrage, progression, save structure, and RNG state remain in C++.
 
-## JavaScript-to-C++ contract
+## Autosave
 
-Emscripten exposes `GameEngine` through Embind.
+After each engine action, the browser stores the opaque C++ save blob under a versioned localStorage key. Reloading enables Continue saved run.
 
-~~~js
-const wasm = await createMiniGameModule();
-const game = new wasm.GameEngine("Ada");
+The save includes serialized std::mt19937 state, so the next random roll is preserved.
 
-game.perform("walk");
-const state = JSON.parse(game.stateJson());
-~~~
+## Seeded runs
 
-Supported semantic commands include:
-
-- `walk`
-- `inventory`
-- `boss`
-- `attack`
-- `heal`
-- `run`
-- `buy:potion`
-- `buy:sword`
-- `buy:key`
+The new-run dialog accepts an optional seed from 0 through 4294967295. The active seed is displayed in the HUD.
 
 ## Deployment
 
-The contents of `web-dist` are ordinary static assets and can be hosted on GitHub Pages, Cloudflare Pages, Netlify, S3/CloudFront, or any static web server that serves `.wasm` files.
+The generated web-dist directory is static and can be hosted by GitHub Pages, Cloudflare Pages, Netlify, S3/CloudFront, or any server that serves WebAssembly.
 
-No backend service or database is required for the current single-player session model. Game state lives in WebAssembly memory for the life of the browser tab.
+## Storage and run lifecycle
 
-## Future extensions
+- Save storage is local to the browser origin and profile. Native saves use the current
+  working directory. There is no account synchronization or cloud save.
+- Continue restores exploration, live combat, or a completed victory/defeat. A completed
+  browser run remains terminal until a new run is started. The CLI exits on completion;
+  save with `S` before exiting while a run is active.
+- Starting a new run replaces the existing autosave. Closing the new-run dialog by
+  continuing the saved run restores the previous run instead.
+- Corrupt saves are rejected without changing the engine. The browser removes the
+  invalid autosave and disables Continue. The CLI keeps the invalid file and reports it.
+- If storage access or writes are denied, gameplay still works; the save badge reports
+  Autosave unavailable. Reloading cannot recover an unsaved session.
+- Event history is session-only presentation state; it is rebuilt from the restored
+  engine message rather than stored as part of the save.
 
-The GameEngine boundary makes several future features straightforward without changing frontend ownership of rules:
+## Offline shell
 
-- save/load serialization;
-- multiple encounter types;
-- equipment slots;
-- achievements;
-- richer animation/audio;
-- deterministic seeds and shareable runs; and
-- an Electron/Tauri desktop wrapper around the same web bundle.
+The service worker caches only allowlisted same-origin app assets after validating
+successful responses and content types. HTTPS and localhost development are supported.
+Activation removes only old `minigame-` caches, preserving other applications' caches.
+A successful online load is required before offline play; saved progress still uses
+localStorage. A new frontend/engine release must use a new service-worker cache name
+so cached JavaScript and WASM remain an aligned bundle.
+
+## Regression verification
+
+See [QA.md](QA.md) for native, WASM, adapter and service-worker test commands.
+The dependency-free adapter harness exercises the actual compiled WASM engine when
+its module and native replay executable are supplied. It checks storage denial,
+corrupt Continue, seed correction, new-run reset, resumed combat, Dragon rendering,
+and native/WASM snapshot parity. It simulates DOM elements; visual layout and real
+browser/service-worker installation still need the manual smoke checks in QA.md.

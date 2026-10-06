@@ -1,4 +1,6 @@
 build/
+build-web/
+build-sanitize/
 cmake-build-*/
 CMakeFiles/
 CMakeCache.txt
@@ -9,6 +11,7 @@ Makefile.user
 *.obj
 *.exe
 *.out
+.minigame-save
 .DS_Store
 .vscode/
 .idea/

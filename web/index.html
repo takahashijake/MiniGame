@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#10141f">
+  <meta name="theme-color" content="#10141f">\n  <link rel="manifest" href="./manifest.webmanifest">
   <title>MiniGame — Web Edition</title>
   <link rel="stylesheet" href="./styles.css">
 </head>
@@ -14,10 +14,11 @@
   <main class="app-shell">
     <header class="topbar">
       <div>
-        <p class="eyebrow">C++ · WebAssembly</p>
+        <p class="eyebrow">C++ · WebAssembly · v1.2</p>
         <h1>MiniGame</h1>
       </div>
       <div class="topbar-actions">
+        <span id="saveBadge" class="runtime-badge">Autosave ready</span>
         <span id="runtimeBadge" class="runtime-badge">Loading engine…</span>
         <button id="newGameButton" class="button button-quiet" type="button">New run</button>
       </div>
@@ -43,27 +44,18 @@
           </div>
           <strong id="healthText">100 / 100 HP</strong>
         </div>
-        <div class="meter" aria-label="Player health">
-          <span id="healthBar"></span>
-        </div>
+        <div class="meter" aria-label="Player health"><span id="healthBar"></span></div>
 
         <div class="stat-grid">
-          <div class="stat">
-            <span>Gold</span>
-            <strong id="goldStat">0</strong>
-          </div>
-          <div class="stat">
-            <span>Potions</span>
-            <strong id="potionStat">0</strong>
-          </div>
-          <div class="stat">
-            <span>Victories</span>
-            <strong id="victoryStat">0 / 3</strong>
-          </div>
+          <div class="stat"><span>Gold</span><strong id="goldStat">0</strong></div>
+          <div class="stat"><span>Potions</span><strong id="potionStat">0</strong></div>
+          <div class="stat"><span>Victories</span><strong id="victoryStat">0 / 3</strong></div>
+          <div class="stat"><span>Seed</span><strong id="seedStat">—</strong></div>
         </div>
 
         <div class="inventory-row">
           <div id="swordChip" class="inventory-chip">⚔ Sword</div>
+          <div id="shieldChip" class="inventory-chip">◈ Shield</div>
           <div id="keyChip" class="inventory-chip">🗝 Key</div>
           <div id="gateChip" class="inventory-chip">🚪 Gate</div>
         </div>
@@ -77,12 +69,8 @@
           </div>
           <strong id="enemyHealthText">0 / 0 HP</strong>
         </div>
-        <div class="meter enemy-meter" aria-label="Enemy health">
-          <span id="enemyHealthBar"></span>
-        </div>
-        <div class="enemy-art" aria-hidden="true">
-          <span id="enemyGlyph">♞</span>
-        </div>
+        <div class="meter enemy-meter" aria-label="Enemy health"><span id="enemyHealthBar"></span></div>
+        <div class="enemy-art" aria-hidden="true"><span id="enemyGlyph">♞</span></div>
       </article>
 
       <article class="panel objective-panel">
@@ -104,10 +92,7 @@
     <section class="control-grid">
       <article class="panel action-panel">
         <div class="panel-heading">
-          <div>
-            <p class="eyebrow">ACTIONS</p>
-            <h3 id="actionHeading">Explore the road</h3>
-          </div>
+          <div><p class="eyebrow">ACTIONS</p><h3 id="actionHeading">Explore the road</h3></div>
           <span class="shortcut-note">Keyboard shortcuts enabled</span>
         </div>
 
@@ -126,37 +111,26 @@
 
       <article class="panel merchant-panel">
         <div class="panel-heading">
-          <div>
-            <p class="eyebrow">TRAVELLING MERCHANT</p>
-            <h3>Spend your spoils</h3>
-          </div>
+          <div><p class="eyebrow">TRAVELLING MERCHANT</p><h3>Spend your spoils</h3></div>
         </div>
         <div class="shop-list">
           <button class="shop-item" data-action="buy:potion" type="button">
-            <span class="shop-icon">✦</span>
-            <span><strong>Potion</strong><small>Restore 25–45 HP</small></span>
-            <b>3g</b>
+            <span class="shop-icon">✦</span><span><strong>Potion</strong><small>Restore 25–45 HP</small></span><b>3g</b>
           </button>
           <button class="shop-item" data-action="buy:sword" type="button">
-            <span class="shop-icon">⚔</span>
-            <span><strong>Sword</strong><small>Permanent +8 damage</small></span>
-            <b>8g</b>
+            <span class="shop-icon">⚔</span><span><strong>Sword</strong><small>Permanent +8 damage</small></span><b>8g</b>
+          </button>
+          <button class="shop-item" data-action="buy:shield" type="button">
+            <span class="shop-icon">◈</span><span><strong>Shield</strong><small>Reduce incoming damage by 5</small></span><b>10g</b>
           </button>
           <button class="shop-item" data-action="buy:key" type="button">
-            <span class="shop-icon">🗝</span>
-            <span><strong>Ancient Key</strong><small>Unlock the boss gate</small></span>
-            <b>6g</b>
+            <span class="shop-icon">🗝</span><span><strong>Ancient Key</strong><small>Unlock the boss gate</small></span><b>6g</b>
           </button>
         </div>
       </article>
 
       <article class="panel log-panel">
-        <div class="panel-heading">
-          <div>
-            <p class="eyebrow">RUN LOG</p>
-            <h3>Recent events</h3>
-          </div>
-        </div>
+        <div class="panel-heading"><div><p class="eyebrow">RUN LOG</p><h3>Recent events</h3></div></div>
         <ol id="eventLog" class="event-log" aria-live="polite"></ol>
       </article>
     </section>
@@ -165,11 +139,16 @@
   <div id="startScreen" class="modal-backdrop">
     <form id="startForm" class="start-card">
       <p class="eyebrow">MINIGAME // WEB EDITION</p>
-      <h2>Begin a new run</h2>
-      <p>The game logic is compiled from C++ to WebAssembly and runs locally in this tab.</p>
+      <h2>Begin a run</h2>
+      <p>Runs autosave locally. Enter a seed to reproduce the same random sequence, or leave it blank for a fresh one.</p>
       <label for="nameInput">Adventurer name</label>
       <input id="nameInput" maxlength="24" autocomplete="off" placeholder="Adventurer">
-      <button id="startButton" class="button button-primary button-wide" type="submit" disabled>Loading C++ engine…</button>
+      <label for="seedInput">Run seed <span class="field-note">(optional)</span></label>
+      <input id="seedInput" type="number" min="0" max="4294967295" inputmode="numeric" placeholder="Random seed">
+      <div class="start-actions">
+        <button id="continueButton" class="button" type="button" disabled>Continue saved run</button>
+        <button id="startButton" class="button button-primary" type="submit" disabled>Loading C++ engine…</button>
+      </div>
     </form>
   </div>
 

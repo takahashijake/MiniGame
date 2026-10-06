@@ -13,6 +13,7 @@ class RandomSource;
 class Player {
 public:
     static constexpr int kMaxHealth = 100;
+    static constexpr int kShieldReduction = 5;
 
     explicit Player(std::string name = "Adventurer");
 
@@ -21,8 +22,10 @@ public:
 
     int health() const noexcept;
     bool alive() const noexcept;
+    int defense() const noexcept;
 
     void takeDamage(int amount);
+    int receiveDamage(int amount);
     int heal(int amount);
     bool usePotion(RandomSource& random);
     int attackDamage(RandomSource& random) const;

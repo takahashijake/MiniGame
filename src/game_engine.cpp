@@ -2,6 +2,9 @@
 
 #include <algorithm>
 #include <cctype>
+#include <charconv>
+#include <iomanip>
+#include <random>
 #include <sstream>
 #include <stdexcept>
 #include <utility>
@@ -10,6 +13,11 @@
 
 namespace minigame {
 namespace {
+
+std::uint32_t generateSeed() {
+    std::random_device device;
+    return device();
+}
 
 std::string escapeJson(const std::string& value) {
     std::ostringstream escaped;
@@ -31,12 +39,70 @@ std::string escapeJson(const std::string& value) {
                 escaped << "\\t";
                 break;
             default:
-                escaped << ch;
+                if (static_cast<unsigned char>(ch) < 0x20) {
+                    escaped << "\\u" << std::hex << std::setw(4) << std::setfill('0')
+                            << static_cast<unsigned int>(static_cast<unsigned char>(ch))
+                            << std::dec;
+                } else {
+                    escaped << ch;
+                }
                 break;
         }
     }
     return escaped.str();
 }
+
+struct SavedRun {
+    std::string magic;
+    std::uint32_t seed = 0;
+    std::string playerName;
+    int health = 0;
+    int gold = 0;
+    int potions = 0;
+    int sword = 0;
+    int shield = 0;
+    int key = 0;
+    int victories = 0;
+    int gateOpened = 0;
+    int bossDefeated = 0;
+    int phaseValue = 0;
+    int bossBattle = 0;
+    std::string enemyName;
+    int enemyHealth = 0;
+    std::string message;
+    std::string randomState;
+
+    bool parse(const std::string& save) {
+        std::istringstream input(save);
+        std::string seedText;
+        input >> magic >> seedText >> std::quoted(playerName) >> health >> gold >> potions >> sword >>
+            shield >> key >> victories >> gateOpened >> bossDefeated >> phaseValue >> bossBattle >>
+            std::quoted(enemyName) >> enemyHealth >> std::quoted(message) >> std::quoted(randomState);
+
+        if (input.fail()) return false;
+        const auto parsed = std::from_chars(seedText.data(), seedText.data() + seedText.size(), seed);
+        if (parsed.ec != std::errc{} || parsed.ptr != seedText.data() + seedText.size()) return false;
+        input >> std::ws;
+        const auto flag = [](int value) { return value == 0 || value == 1; };
+        return input.eof() && magic == "MG2" && !playerName.empty() &&
+            health >= 0 && health <= Player::kMaxHealth && gold >= 0 &&
+            potions >= 0 && victories >= 0 && phaseValue >= 0 && phaseValue <= 3 &&
+            flag(sword) && flag(shield) && flag(key) && flag(gateOpened) &&
+            flag(bossDefeated) && flag(bossBattle) && !randomState.empty();
+    }
+
+    bool consistent() const {
+        const bool battle = phaseValue == static_cast<int>(GamePhase::Battle);
+        const bool defeat = phaseValue == static_cast<int>(GamePhase::Defeat);
+        const bool victory = phaseValue == static_cast<int>(GamePhase::Victory);
+        return (defeat == (health == 0)) && (victory == (bossDefeated == 1)) &&
+            (battle == !enemyName.empty()) && (battle || enemyHealth == 0) &&
+            (!battle || enemyHealth > 0) &&
+            (bossBattle == (battle && enemyName == "Dragon" ? 1 : 0)) &&
+            (!gateOpened || (victories >= Progression::kVictoriesForBoss && !key)) &&
+            (!bossBattle || gateOpened) && (!victory || gateOpened);
+    }
+};
 
 const char* jsonBool(bool value) {
     return value ? "true" : "false";
@@ -45,7 +111,14 @@ const char* jsonBool(bool value) {
 }  // namespace
 
 GameEngine::GameEngine(std::string playerName)
-    : GameEngine(std::move(playerName), std::make_unique<RandomGenerator>()) {}
+    : GameEngine(std::move(playerName), generateSeed()) {}
+
+GameEngine::GameEngine(std::string playerName, std::uint32_t seed)
+    : player_(std::move(playerName)),
+      random_(std::make_unique<RandomGenerator>(seed)),
+      seed_(seed) {
+    setMessage("The road is open. Explore, gear up, and find the Dragon.");
+}
 
 GameEngine::GameEngine(std::string playerName, std::unique_ptr<RandomSource> random)
     : player_(std::move(playerName)), random_(std::move(random)) {
@@ -56,12 +129,18 @@ GameEngine::GameEngine(std::string playerName, std::unique_ptr<RandomSource> ran
 }
 
 void GameEngine::reset(std::string playerName) {
+    resetSeeded(std::move(playerName), generateSeed());
+}
+
+void GameEngine::resetSeeded(std::string playerName, std::uint32_t seed) {
     player_ = Player(std::move(playerName));
     progression_ = Progression{};
     enemy_.reset();
     phase_ = GamePhase::Exploring;
     bossBattle_ = false;
-    setMessage("A new adventure begins.");
+    seed_ = seed;
+    random_ = std::make_unique<RandomGenerator>(seed_);
+    setMessage("A new adventure begins. Seed " + std::to_string(seed_) + ".");
 }
 
 void GameEngine::perform(const std::string& rawCommand) {
@@ -93,6 +172,8 @@ void GameEngine::perform(const std::string& rawCommand) {
         buy(Item::Potion);
     } else if (command == "buy:sword" || command == "sword") {
         buy(Item::Sword);
+    } else if (command == "buy:shield" || command == "shield") {
+        buy(Item::Shield);
     } else if (command == "buy:key" || command == "key") {
         buy(Item::Key);
     } else if (command == "inventory" || command == "i") {
@@ -101,6 +182,9 @@ void GameEngine::perform(const std::string& rawCommand) {
                 << player_.itemCount(Item::Gold) << " gold";
         if (player_.hasItem(Item::Sword)) {
             summary << ", Sword";
+        }
+        if (player_.hasItem(Item::Shield)) {
+            summary << ", Shield";
         }
         if (player_.hasItem(Item::Key)) {
             summary << ", Key";
@@ -116,12 +200,15 @@ GameSnapshot GameEngine::snapshot() const {
     GameSnapshot result;
     result.playerName = player_.name();
     result.health = player_.health();
+    result.defense = player_.defense();
     result.gold = player_.itemCount(Item::Gold);
     result.potions = player_.itemCount(Item::Potion);
     result.hasSword = player_.hasItem(Item::Sword);
+    result.hasShield = player_.hasItem(Item::Shield);
     result.hasKey = player_.hasItem(Item::Key);
     result.gateOpened = progression_.gateOpened();
     result.victories = progression_.victories();
+    result.seed = seed_;
     result.phase = phaseName(phase_);
     result.message = message_;
     result.bossAvailable = progression_.bossAvailable(player_);
@@ -130,6 +217,8 @@ GameSnapshot GameEngine::snapshot() const {
         result.enemyName = enemy_->name();
         result.enemyHealth = enemy_->health();
         result.enemyMaxHealth = enemy_->maxHealth();
+        result.enemyEnraged =
+            bossBattle_ && enemy_->health() <= enemy_->maxHealth() / 2 && enemy_->alive();
     }
 
     return result;
@@ -142,21 +231,105 @@ std::string GameEngine::stateJson() const {
          << "\"playerName\":\"" << escapeJson(state.playerName) << "\","
          << "\"health\":" << state.health << ","
          << "\"maxHealth\":" << state.maxHealth << ","
+         << "\"defense\":" << state.defense << ","
          << "\"gold\":" << state.gold << ","
          << "\"potions\":" << state.potions << ","
          << "\"hasSword\":" << jsonBool(state.hasSword) << ","
+         << "\"hasShield\":" << jsonBool(state.hasShield) << ","
          << "\"hasKey\":" << jsonBool(state.hasKey) << ","
          << "\"gateOpened\":" << jsonBool(state.gateOpened) << ","
          << "\"victories\":" << state.victories << ","
          << "\"victoriesRequired\":" << state.victoriesRequired << ","
+         << "\"seed\":" << state.seed << ","
          << "\"phase\":\"" << state.phase << "\","
          << "\"message\":\"" << escapeJson(state.message) << "\","
          << "\"enemyName\":\"" << escapeJson(state.enemyName) << "\","
          << "\"enemyHealth\":" << state.enemyHealth << ","
          << "\"enemyMaxHealth\":" << state.enemyMaxHealth << ","
+         << "\"enemyEnraged\":" << jsonBool(state.enemyEnraged) << ","
          << "\"bossAvailable\":" << jsonBool(state.bossAvailable)
          << "}";
     return json.str();
+}
+
+std::string GameEngine::saveState() const {
+    const std::string enemyName = enemy_ ? enemy_->name() : "";
+    const int enemyHealth = enemy_ ? enemy_->health() : 0;
+
+    std::ostringstream save;
+    save << "MG2 "
+         << seed_ << " "
+         << std::quoted(player_.name()) << " "
+         << player_.health() << " "
+         << player_.itemCount(Item::Gold) << " "
+         << player_.itemCount(Item::Potion) << " "
+         << (player_.hasItem(Item::Sword) ? 1 : 0) << " "
+         << (player_.hasItem(Item::Shield) ? 1 : 0) << " "
+         << (player_.hasItem(Item::Key) ? 1 : 0) << " "
+         << progression_.victories() << " "
+         << (progression_.gateOpened() ? 1 : 0) << " "
+         << (progression_.bossDefeated() ? 1 : 0) << " "
+         << static_cast<int>(phase_) << " "
+         << (bossBattle_ ? 1 : 0) << " "
+         << std::quoted(enemyName) << " "
+         << enemyHealth << " "
+         << std::quoted(message_) << " "
+         << std::quoted(random_->serializeState());
+    return save.str();
+}
+
+bool GameEngine::loadState(const std::string& save) {
+    SavedRun saved;
+    if (!saved.parse(save) || !saved.consistent()) return false;
+    const auto& [magic, seed, playerName, health, gold, potions, sword, shield, key,
+                 victories, gateOpened, bossDefeated, phaseValue, bossBattle,
+                 enemyName, enemyHealth, message, randomState] = saved;
+
+    Player restoredPlayer(playerName);
+    restoredPlayer.takeDamage(Player::kMaxHealth - health);
+    restoredPlayer.addItem(Item::Gold, gold);
+    restoredPlayer.addItem(Item::Potion, potions);
+    if (sword != 0) {
+        restoredPlayer.addItem(Item::Sword);
+    }
+    if (shield != 0) {
+        restoredPlayer.addItem(Item::Shield);
+    }
+    if (key != 0) {
+        restoredPlayer.addItem(Item::Key);
+    }
+
+    std::unique_ptr<Character> restoredEnemy;
+    if (!enemyName.empty()) {
+        restoredEnemy = createEnemy(enemyName);
+        if (!restoredEnemy || enemyHealth < 0 || enemyHealth > restoredEnemy->maxHealth()) {
+            return false;
+        }
+        restoredEnemy->takeDamage(restoredEnemy->maxHealth() - enemyHealth);
+    }
+
+    const GamePhase restoredPhase = static_cast<GamePhase>(phaseValue);
+    if (restoredPhase == GamePhase::Battle && !restoredEnemy) {
+        return false;
+    }
+    if (restoredPhase != GamePhase::Battle && restoredEnemy) {
+        return false;
+    }
+
+    auto restoredRandom = std::make_unique<RandomGenerator>(seed);
+    if (!restoredRandom->restoreState(randomState)) {
+        return false;
+    }
+
+    player_ = std::move(restoredPlayer);
+    progression_.restore(victories, gateOpened != 0, bossDefeated != 0);
+    random_ = std::move(restoredRandom);
+    enemy_ = std::move(restoredEnemy);
+    phase_ = restoredPhase;
+    bossBattle_ = bossBattle != 0;
+    seed_ = seed;
+    message_ = std::move(message);
+    return true;
 }
 
 std::string GameEngine::normalizeCommand(std::string command) {
@@ -188,20 +361,51 @@ const char* GameEngine::phaseName(GamePhase phase) noexcept {
     return "unknown";
 }
 
+std::unique_ptr<Character> GameEngine::createEnemy(const std::string& name) {
+    if (name == "Knight") {
+        return std::make_unique<Knight>();
+    }
+    if (name == "Mage") {
+        return std::make_unique<Mage>();
+    }
+    if (name == "Rogue") {
+        return std::make_unique<Rogue>();
+    }
+    if (name == "Golem") {
+        return std::make_unique<Golem>();
+    }
+    if (name == "Dragon") {
+        return std::make_unique<Dragon>();
+    }
+    return nullptr;
+}
+
 void GameEngine::walk() {
     const int event = random_->between(1, 100);
 
-    if (event <= 55) {
-        if (random_->chance(55)) {
+    if (event <= 58) {
+        const int encounter = random_->between(1, 100);
+        if (encounter <= 34) {
             startBattle(std::make_unique<Knight>(), false);
-        } else {
+        } else if (encounter <= 59) {
             startBattle(std::make_unique<Mage>(), false);
+        } else if (encounter <= 81) {
+            startBattle(std::make_unique<Rogue>(), false);
+        } else {
+            startBattle(std::make_unique<Golem>(), false);
         }
         return;
     }
 
-    if (event <= 85) {
+    if (event <= 82) {
         handleLoot();
+        return;
+    }
+
+    if (event <= 94) {
+        const int restored = player_.heal(random_->between(15, 30));
+        setMessage("You discover a roadside shrine and recover " + std::to_string(restored) +
+                   " HP.");
         return;
     }
 
@@ -237,7 +441,8 @@ void GameEngine::buy(Item item) {
     }
 
     const int cost = progression_.price(item);
-    if ((item == Item::Sword || item == Item::Key) && player_.hasItem(item)) {
+    if ((item == Item::Sword || item == Item::Shield || item == Item::Key) &&
+        player_.hasItem(item)) {
         setMessage("You already own that item.");
         return;
     }
@@ -297,6 +502,12 @@ void GameEngine::playerHeal() {
 }
 
 void GameEngine::playerRun() {
+    if (bossBattle_) {
+        setMessage("The Dragon seals the arena. There is no escape.");
+        enemyTurn();
+        return;
+    }
+
     if (random_->chance(35)) {
         enemy_.reset();
         phase_ = GamePhase::Exploring;
@@ -324,20 +535,38 @@ void GameEngine::enemyTurn() {
         return;
     }
 
-    if (move > 70 && enemy_->health() < enemy_->maxHealth()) {
+    if (move > 72 && enemy_->health() < enemy_->maxHealth() && enemy_->name() != "Rogue") {
         const int restored = enemy_->heal(enemy_->healAmount(*random_));
         setMessage(message_ + " The " + enemy_->name() + " recovers " +
                    std::to_string(restored) + " HP.");
         return;
     }
 
-    const int damage = enemy_->attackDamage(*random_);
-    player_.takeDamage(damage);
-    setMessage(message_ + " The " + enemy_->name() + " hits back for " +
-               std::to_string(damage) + " damage.");
+    int rawDamage = enemy_->attackDamage(*random_);
+    const bool enraged =
+        bossBattle_ && enemy_->health() <= enemy_->maxHealth() / 2 && enemy_->alive();
+    if (enraged) {
+        rawDamage += 8;
+    }
+
+    const int appliedDamage = player_.receiveDamage(rawDamage);
+    std::string response = message_ + " ";
+    if (enraged) {
+        response += "The enraged Dragon ";
+    } else {
+        response += "The " + enemy_->name() + " ";
+    }
+    response += "hits back for " + std::to_string(appliedDamage) + " damage";
+    if (player_.defense() > 0) {
+        response += " after Shield mitigation";
+    }
+    response += ".";
+    setMessage(response);
 
     if (!player_.alive()) {
         phase_ = GamePhase::Defeat;
+        enemy_.reset();
+        bossBattle_ = false;
         setMessage(message_ + " Your adventure ends here.");
     }
 }
@@ -374,25 +603,31 @@ void GameEngine::resolveVictory() {
 void GameEngine::handleLoot() {
     const int loot = random_->between(1, 100);
 
-    if (loot <= 45) {
+    if (loot <= 38) {
         player_.addItem(Item::Potion);
         setMessage("You find a Potion tucked beside the trail.");
         return;
     }
 
-    if (loot <= 65 && !player_.hasItem(Item::Key) && !progression_.gateOpened()) {
+    if (loot <= 56 && !player_.hasItem(Item::Key) && !progression_.gateOpened()) {
         player_.addItem(Item::Key);
         setMessage("You discover an old iron Key.");
         return;
     }
 
-    if (loot <= 75 && !player_.hasItem(Item::Sword)) {
+    if (loot <= 70 && !player_.hasItem(Item::Sword)) {
         player_.addItem(Item::Sword);
         setMessage("You uncover a Sword. Your attacks now deal bonus damage.");
         return;
     }
 
-    const int gold = random_->between(1, 4);
+    if (loot <= 82 && !player_.hasItem(Item::Shield)) {
+        player_.addItem(Item::Shield);
+        setMessage("You recover a Shield. Incoming attacks now deal 5 less damage.");
+        return;
+    }
+
+    const int gold = random_->between(1, 5);
     player_.addItem(Item::Gold, gold);
     setMessage("You find " + std::to_string(gold) + " gold.");
 }

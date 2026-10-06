@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(MiniGame VERSION 1.1.0 LANGUAGES CXX)
+project(MiniGame VERSION 1.2.0 LANGUAGES CXX)
 
 option(MINIGAME_BUILD_TESTS "Build MiniGame tests" ON)
 option(MINIGAME_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" OFF)
@@ -97,4 +97,17 @@ if(MINIGAME_BUILD_TESTS AND NOT EMSCRIPTEN)
     endif()
 
     add_test(NAME minigame_core_tests COMMAND minigame_tests)
+
+    add_executable(minigame_replay tests/replay.cpp)
+    target_link_libraries(minigame_replay PRIVATE minigame_core)
+    minigame_enable_warnings(minigame_replay)
+    if(MINIGAME_ENABLE_SANITIZERS AND NOT MSVC)
+        target_compile_options(minigame_replay PRIVATE -fsanitize=address,undefined -fno-omit-frame-pointer)
+        target_link_options(minigame_replay PRIVATE -fsanitize=address,undefined)
+    endif()
+    find_package(Python3 COMPONENTS Interpreter)
+    if(Python3_FOUND)
+        add_test(NAME minigame_cli_tests COMMAND ${Python3_EXECUTABLE}
+            ${PROJECT_SOURCE_DIR}/tests/test_cli.py $<TARGET_FILE:minigame>)
+    endif()
 endif()

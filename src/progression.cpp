@@ -1,5 +1,8 @@
 #include "minigame/progression.h"
 
+#include <algorithm>
+#include <limits>
+
 #include "minigame/player.h"
 #include "minigame/random.h"
 
@@ -18,7 +21,7 @@ bool Progression::bossDefeated() const noexcept {
 }
 
 BattleReward Progression::recordVictory(Player& player, RandomSource& random) {
-    ++victories_;
+    if (victories_ < std::numeric_limits<int>::max()) ++victories_;
 
     BattleReward reward;
     reward.gold = random.between(2, 5);
@@ -38,6 +41,8 @@ int Progression::price(Item item) const noexcept {
             return 3;
         case Item::Sword:
             return 8;
+        case Item::Shield:
+            return 10;
         case Item::Key:
             return 6;
         case Item::Gold:
@@ -52,7 +57,7 @@ bool Progression::purchase(Player& player, Item item) const {
         return false;
     }
 
-    if (item == Item::Sword && player.hasItem(Item::Sword)) {
+    if ((item == Item::Sword || item == Item::Shield) && player.hasItem(item)) {
         return false;
     }
 
@@ -94,6 +99,12 @@ bool Progression::openBossGate(Player& player) {
 
 void Progression::recordBossDefeat() noexcept {
     bossDefeated_ = true;
+}
+
+void Progression::restore(int victories, bool gateOpened, bool bossDefeated) noexcept {
+    victories_ = std::max(0, victories);
+    gateOpened_ = gateOpened;
+    bossDefeated_ = bossDefeated;
 }
 
 }  // namespace minigame

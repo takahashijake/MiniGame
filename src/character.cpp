@@ -56,7 +56,23 @@ int Mage::healAmount(RandomSource& random) const {
     return random.between(18, 30);
 }
 
-Dragon::Dragon() : Character("Dragon", 160) {}
+Rogue::Rogue() : Character("Rogue", 65) {}
+
+int Rogue::attackDamage(RandomSource& random) const {
+    return random.between(16, 27);
+}
+
+Golem::Golem() : Character("Golem", 125) {}
+
+int Golem::attackDamage(RandomSource& random) const {
+    return random.between(12, 19);
+}
+
+int Golem::healAmount(RandomSource& random) const {
+    return random.between(8, 14);
+}
+
+Dragon::Dragon() : Character("Dragon", 180) {}
 
 int Dragon::attackDamage(RandomSource& random) const {
     return random.between(18, 30);
