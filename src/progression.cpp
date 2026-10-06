@@ -1,6 +1,7 @@
 #include "minigame/progression.h"
 
 #include <algorithm>
+#include <limits>
 
 #include "minigame/player.h"
 #include "minigame/random.h"
@@ -20,7 +21,7 @@ bool Progression::bossDefeated() const noexcept {
 }
 
 BattleReward Progression::recordVictory(Player& player, RandomSource& random) {
-    ++victories_;
+    if (victories_ < std::numeric_limits<int>::max()) ++victories_;
 
     BattleReward reward;
     reward.gold = random.between(2, 5);

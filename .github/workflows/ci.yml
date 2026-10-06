@@ -54,10 +54,18 @@ jobs:
         run: |
           node --check web/app.js
           node --check web/sw.js
+          node tests/test_web.cjs
+          node tests/test_sw.cjs
       - name: Configure WebAssembly build
         run: emcmake cmake -S . -B build-web -DMINIGAME_BUILD_TESTS=OFF -DMINIGAME_WARNINGS_AS_ERRORS=ON
       - name: Build browser product
         run: cmake --build build-web --target minigame_web
+      - name: Build native replay reference
+        run: |
+          cmake -S . -B build-native -DMINIGAME_WARNINGS_AS_ERRORS=ON
+          cmake --build build-native --target minigame_replay
+      - name: Test real WebAssembly persistence and native replay parity
+        run: node tests/test_web.cjs build-web/web-dist/minigame.js ./build-native/minigame_replay
       - name: Verify web bundle
         shell: bash
         run: |

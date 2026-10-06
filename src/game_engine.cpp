@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <charconv>
 #include <iomanip>
 #include <random>
 #include <sstream>
@@ -38,12 +39,70 @@ std::string escapeJson(const std::string& value) {
                 escaped << "\\t";
                 break;
             default:
-                escaped << ch;
+                if (static_cast<unsigned char>(ch) < 0x20) {
+                    escaped << "\\u" << std::hex << std::setw(4) << std::setfill('0')
+                            << static_cast<unsigned int>(static_cast<unsigned char>(ch))
+                            << std::dec;
+                } else {
+                    escaped << ch;
+                }
                 break;
         }
     }
     return escaped.str();
 }
+
+struct SavedRun {
+    std::string magic;
+    std::uint32_t seed = 0;
+    std::string playerName;
+    int health = 0;
+    int gold = 0;
+    int potions = 0;
+    int sword = 0;
+    int shield = 0;
+    int key = 0;
+    int victories = 0;
+    int gateOpened = 0;
+    int bossDefeated = 0;
+    int phaseValue = 0;
+    int bossBattle = 0;
+    std::string enemyName;
+    int enemyHealth = 0;
+    std::string message;
+    std::string randomState;
+
+    bool parse(const std::string& save) {
+        std::istringstream input(save);
+        std::string seedText;
+        input >> magic >> seedText >> std::quoted(playerName) >> health >> gold >> potions >> sword >>
+            shield >> key >> victories >> gateOpened >> bossDefeated >> phaseValue >> bossBattle >>
+            std::quoted(enemyName) >> enemyHealth >> std::quoted(message) >> std::quoted(randomState);
+
+        if (input.fail()) return false;
+        const auto parsed = std::from_chars(seedText.data(), seedText.data() + seedText.size(), seed);
+        if (parsed.ec != std::errc{} || parsed.ptr != seedText.data() + seedText.size()) return false;
+        input >> std::ws;
+        const auto flag = [](int value) { return value == 0 || value == 1; };
+        return input.eof() && magic == "MG2" && !playerName.empty() &&
+            health >= 0 && health <= Player::kMaxHealth && gold >= 0 &&
+            potions >= 0 && victories >= 0 && phaseValue >= 0 && phaseValue <= 3 &&
+            flag(sword) && flag(shield) && flag(key) && flag(gateOpened) &&
+            flag(bossDefeated) && flag(bossBattle) && !randomState.empty();
+    }
+
+    bool consistent() const {
+        const bool battle = phaseValue == static_cast<int>(GamePhase::Battle);
+        const bool defeat = phaseValue == static_cast<int>(GamePhase::Defeat);
+        const bool victory = phaseValue == static_cast<int>(GamePhase::Victory);
+        return (defeat == (health == 0)) && (victory == (bossDefeated == 1)) &&
+            (battle == !enemyName.empty()) && (battle || enemyHealth == 0) &&
+            (!battle || enemyHealth > 0) &&
+            (bossBattle == (battle && enemyName == "Dragon" ? 1 : 0)) &&
+            (!gateOpened || (victories >= Progression::kVictoriesForBoss && !key)) &&
+            (!bossBattle || gateOpened) && (!victory || gateOpened);
+    }
+};
 
 const char* jsonBool(bool value) {
     return value ? "true" : "false";
@@ -220,35 +279,11 @@ std::string GameEngine::saveState() const {
 }
 
 bool GameEngine::loadState(const std::string& save) {
-    std::istringstream input(save);
-
-    std::string magic;
-    std::uint32_t seed = 0;
-    std::string playerName;
-    int health = 0;
-    int gold = 0;
-    int potions = 0;
-    int sword = 0;
-    int shield = 0;
-    int key = 0;
-    int victories = 0;
-    int gateOpened = 0;
-    int bossDefeated = 0;
-    int phaseValue = 0;
-    int bossBattle = 0;
-    std::string enemyName;
-    int enemyHealth = 0;
-    std::string message;
-    std::string randomState;
-
-    input >> magic >> seed >> std::quoted(playerName) >> health >> gold >> potions >> sword >>
-        shield >> key >> victories >> gateOpened >> bossDefeated >> phaseValue >> bossBattle >>
-        std::quoted(enemyName) >> enemyHealth >> std::quoted(message) >> std::quoted(randomState);
-
-    if (input.fail() || magic != "MG2" || health < 0 || health > Player::kMaxHealth ||
-        gold < 0 || potions < 0 || victories < 0 || phaseValue < 0 || phaseValue > 3) {
-        return false;
-    }
+    SavedRun saved;
+    if (!saved.parse(save) || !saved.consistent()) return false;
+    const auto& [magic, seed, playerName, health, gold, potions, sword, shield, key,
+                 victories, gateOpened, bossDefeated, phaseValue, bossBattle,
+                 enemyName, enemyHealth, message, randomState] = saved;
 
     Player restoredPlayer(playerName);
     restoredPlayer.takeDamage(Player::kMaxHealth - health);
@@ -282,7 +317,7 @@ bool GameEngine::loadState(const std::string& save) {
     }
 
     auto restoredRandom = std::make_unique<RandomGenerator>(seed);
-    if (!randomState.empty() && !restoredRandom->restoreState(randomState)) {
+    if (!restoredRandom->restoreState(randomState)) {
         return false;
     }
 

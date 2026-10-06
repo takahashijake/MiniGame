@@ -6,6 +6,8 @@
 #include <fstream>
 #include <iostream>
 #include <iterator>
+#include <limits>
+#include <stdexcept>
 #include <string>
 
 namespace minigame {
@@ -43,7 +45,14 @@ int GameState::run() {
         engine_.reset(name);
     } else {
         try {
-            const auto seed = static_cast<std::uint32_t>(std::stoul(seedText));
+            if (!std::all_of(seedText.begin(), seedText.end(), [](unsigned char ch) {
+                    return ch >= '0' && ch <= '9';
+                })) throw std::invalid_argument("seed must contain decimal digits");
+            const auto parsed = std::stoull(seedText);
+            if (parsed > std::numeric_limits<std::uint32_t>::max()) {
+                throw std::out_of_range("seed exceeds uint32");
+            }
+            const auto seed = static_cast<std::uint32_t>(parsed);
             engine_.resetSeeded(name, seed);
         } catch (...) {
             output_ << "Invalid seed; using a random seed instead.\n";
@@ -142,7 +151,7 @@ void GameState::runExplorationTurn() {
 }
 
 void GameState::runBattleTurn() {
-    output_ << "\n[A] Attack  [H] Potion  [R] Run  [S] Save\n> ";
+    output_ << "\n[A] Attack  [H] Potion  [R] Run  [S] Save  [L] Load  [Q] Quit\n> ";
     const char choice = readChoice();
 
     switch (choice) {
@@ -157,6 +166,12 @@ void GameState::runBattleTurn() {
             break;
         case 'S':
             saveGame();
+            break;
+        case 'L':
+            loadGame();
+            break;
+        case 'Q':
+            running_ = false;
             break;
         default:
             engine_.perform("unknown");
@@ -209,6 +224,11 @@ void GameState::saveGame() {
         return;
     }
     file << engine_.saveState();
+    file.close();
+    if (!file) {
+        output_ << "Could not write " << kSaveFile << ".\n";
+        return;
+    }
     output_ << "Run saved to " << kSaveFile << ".\n";
 }
 
@@ -230,9 +250,8 @@ void GameState::loadGame() {
 
 char GameState::readChoice() const {
     std::string line;
-    if (!std::getline(input_, line) || line.empty()) {
-        return '\0';
-    }
+    if (!std::getline(input_, line)) return 'Q';
+    if (line.empty()) return '\0';
     return static_cast<char>(std::toupper(static_cast<unsigned char>(line.front())));
 }
 

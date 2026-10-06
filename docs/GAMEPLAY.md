@@ -51,3 +51,14 @@ The native CLI saves to .minigame-save.
 The browser autosaves to localStorage after each engine action and exposes Continue saved run.
 
 Persistence includes the live random-engine state, so resumed runs continue the same sequence exactly.
+
+## Turn costs and controls
+
+An attack or a Potion use gives a surviving enemy one turn. A missing Potion consumes
+no turn. A failed escape, including attempting to flee the Dragon, gives the enemy
+one turn. Killing an enemy skips retaliation. Normal enemies can retreat; the Rogue
+attacks instead of healing. The Dragon's enrage threshold is inclusive: **90 HP or less**.
+Healing above 90 HP removes enrage until its health drops again.
+
+Native controls: `W` explore, `I` inventory, `M` merchant, `B` gate; in battle,
+`A` attack, `H` Potion, `R` run. `S` saves, `L` loads and `Q` quits in both modes.

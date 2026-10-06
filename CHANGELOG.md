@@ -1,5 +1,17 @@
 # Changelog
 
+## [Unreleased] — v1.2 review fixes (2026-10-06)
+
+- Make seeded RNG mapping portable between native and WebAssembly standard libraries.
+- Validate saves atomically, including flags, phase/gate invariants and complete RNG data.
+- Reject invalid native seeds; quit cleanly on EOF; allow load and quit during combat.
+- Keep the browser playable when localStorage is denied, and clear corrected seed validation.
+- Escape every JSON control character; prevent restored reward counters from overflowing.
+- Split persistence validation and browser rendering into focused helpers.
+- Preserve unrelated service-worker caches and validate the entire shell before caching.
+- Add deterministic combat, CLI, browser/WASM, RNG parity and service-worker regressions to CI.
+- Document persistence limits, offline behavior, turn costs and QA commands.
+
 ## [1.2.0] - 2026-10-05
 
 ### Added
@@ -12,7 +24,7 @@
 - Rogue glass-cannon enemy.
 - Golem tank enemy.
 - Healing shrine exploration event.
-- Dragon phase two: 180 HP, no escape, +8 enraged damage below half health.
+- Dragon phase two: 180 HP, no escape, +8 enraged damage at or below half health.
 - HUD state for seed, defense, Shield, and Dragon enrage.
 - Regression tests for seeded reproducibility, save/load RNG continuity, Shield behavior, and new enemies.
 

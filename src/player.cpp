@@ -1,6 +1,7 @@
 #include "minigame/player.h"
 
 #include <algorithm>
+#include <limits>
 #include <utility>
 
 #include "minigame/random.h"
@@ -48,7 +49,7 @@ int Player::receiveDamage(int amount) {
 
 int Player::heal(int amount) {
     const int previous = health_;
-    health_ = std::min(kMaxHealth, health_ + std::max(0, amount));
+    health_ = std::min(kMaxHealth, health_ + std::min(kMaxHealth - health_, std::max(0, amount)));
     return health_ - previous;
 }
 
@@ -68,7 +69,8 @@ int Player::attackDamage(RandomSource& random) const {
 
 void Player::addItem(Item item, int quantity) {
     if (quantity > 0) {
-        inventory_[item] += quantity;
+        int& count = inventory_[item];
+        count += std::min(quantity, std::numeric_limits<int>::max() - count);
     }
 }
 

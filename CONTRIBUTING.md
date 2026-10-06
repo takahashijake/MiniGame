@@ -24,8 +24,12 @@ With Emscripten installed:
 
 ~~~sh
 node --check web/app.js
+node --check web/sw.js
+node tests/test_web.cjs
+node tests/test_sw.cjs
 emcmake cmake -S . -B build-web -DMINIGAME_BUILD_TESTS=OFF -DMINIGAME_WARNINGS_AS_ERRORS=ON
 cmake --build build-web --target minigame_web
+node tests/test_web.cjs build-web/web-dist/minigame.js ./build/minigame_replay
 python3 -m http.server 8080 --directory build-web/web-dist
 ~~~
 
@@ -40,3 +44,5 @@ Exercise exploration, normal combat, merchant disabled/enabled states, healing, 
 - Add regression coverage for bug fixes and focused tests for new mechanics.
 - Keep frontend controls accessible and usable at desktop and mobile widths.
 - Update CHANGELOG.md and relevant docs when behavior or build steps change.
+
+See [QA coverage and browser smoke checks](docs/QA.md) for persistence and seeded replay verification.

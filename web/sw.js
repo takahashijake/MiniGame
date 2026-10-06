@@ -1,4 +1,4 @@
-const CACHE_NAME = "minigame-v1.2";
+const CACHE_NAME = "minigame-v1.2-r2";
 const SCOPE_URL = new URL(self.registration.scope);
 
 const APP_FILES = [
@@ -18,7 +18,8 @@ const ALLOWED_PATHS = new Set(APP_SHELL.map((url) => new URL(url).pathname));
 function isAllowedAppUrl(rawUrl) {
   const url = new URL(rawUrl);
   return (
-    url.protocol === "https:" &&
+    (url.protocol === "https:" ||
+      (url.protocol === "http:" && ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname))) &&
     url.origin === SCOPE_URL.origin &&
     ALLOWED_PATHS.has(url.pathname)
   );
@@ -49,7 +50,16 @@ self.addEventListener("install", (event) => {
       }
 
       const cache = await caches.open(CACHE_NAME);
-      await cache.addAll(APP_SHELL);
+      // Validate every response before committing an app shell to the cache.
+      const assets = await Promise.all(APP_SHELL.map(async (url) => {
+        const response = await fetch(url, { cache: "reload" });
+        if (response.status !== 200 || response.type !== "basic" ||
+            !hasExpectedContentType(url, response)) {
+          throw new Error(`Invalid MiniGame app-shell response: ${url}`);
+        }
+        return [url, response];
+      }));
+      await Promise.all(assets.map(([url, response]) => cache.put(url, response)));
       await self.skipWaiting();
     })()
   );
@@ -60,7 +70,7 @@ self.addEventListener("activate", (event) => {
     (async () => {
       const keys = await caches.keys();
       await Promise.all(
-        keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))
+        keys.filter((key) => key.startsWith("minigame-") && key !== CACHE_NAME).map((key) => caches.delete(key))
       );
       await self.clients.claim();
     })()

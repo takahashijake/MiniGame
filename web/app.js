@@ -115,6 +115,14 @@
     ui.phaseBadge.textContent = phaseLabel(snapshot.phase);
     ui.phaseBadge.className = `phase-badge ${snapshot.phase}`;
 
+    renderPlayer(snapshot);
+    renderEnemy(snapshot, isBattle);
+    renderActions(snapshot, isBattle, isFinished);
+
+    renderProgress(snapshot);
+  }
+
+  function renderPlayer(snapshot) {
     ui.playerName.textContent = snapshot.playerName;
     ui.healthText.textContent =
       `${snapshot.health} / ${snapshot.maxHealth} HP${snapshot.defense > 0 ? ` · ${snapshot.defense} DEF` : ""}`;
@@ -134,6 +142,9 @@
     markChip(ui.keyChip, snapshot.hasKey, "🗝 Key secured", "🗝 No key");
     markChip(ui.gateChip, snapshot.gateOpened, "🚪 Gate open", "🚪 Gate sealed");
 
+  }
+
+  function renderEnemy(snapshot, isBattle) {
     ui.enemyPanel.classList.toggle("hidden", !isBattle);
     ui.enemyPanel.classList.toggle("enraged", Boolean(snapshot.enemyEnraged));
     if (isBattle) {
@@ -145,6 +156,9 @@
       ui.enemyGlyph.textContent = enemyGlyph(snapshot.enemyName);
     }
 
+  }
+
+  function renderActions(snapshot, isBattle, isFinished) {
     ui.explorationActions.classList.toggle("hidden", isBattle);
     ui.battleActions.classList.toggle("hidden", !isBattle);
     ui.actionHeading.textContent = isBattle ? "Choose your move" : "Explore the road";
@@ -175,7 +189,6 @@
       button.disabled = disabled;
     });
 
-    renderProgress(snapshot);
   }
 
   function appendLog(message) {
@@ -252,12 +265,28 @@
     ui.startScreen.classList.add("hidden");
   }
 
+  function readSavedRun() {
+    try {
+      return localStorage.getItem(SAVE_KEY);
+    } catch (error) {
+      console.warn("MiniGame save storage unavailable", error);
+      ui.saveBadge.textContent = "Autosave unavailable";
+      ui.saveBadge.classList.remove("saved");
+      ui.continueButton.disabled = true;
+      return null;
+    }
+  }
+
   function continueSavedRun() {
-    const save = localStorage.getItem(SAVE_KEY);
+    const save = readSavedRun();
     if (!save || !game) return;
 
     if (!game.loadState(save)) {
-      localStorage.removeItem(SAVE_KEY);
+      try {
+        localStorage.removeItem(SAVE_KEY);
+      } catch (error) {
+        console.warn("MiniGame invalid save could not be removed", error);
+      }
       ui.continueButton.disabled = true;
       ui.saveBadge.textContent = "Saved run was invalid";
       return;
@@ -290,6 +319,8 @@
       event.preventDefault();
       resetGame(ui.nameInput.value);
     });
+
+    ui.seedInput.addEventListener("input", () => ui.seedInput.setCustomValidity(""));
 
     ui.continueButton.addEventListener("click", continueSavedRun);
     ui.newGameButton.addEventListener("click", openStartScreen);
@@ -324,9 +355,11 @@
       ui.startButton.disabled = false;
       ui.startButton.textContent = "Begin adventure";
 
-      const hasSave = Boolean(localStorage.getItem(SAVE_KEY));
+      const hasSave = Boolean(readSavedRun());
       ui.continueButton.disabled = !hasSave;
-      ui.saveBadge.textContent = hasSave ? "Saved run found" : "Autosave ready";
+      if (ui.saveBadge.textContent !== "Autosave unavailable") {
+        ui.saveBadge.textContent = hasSave ? "Saved run found" : "Autosave ready";
+      }
       ui.saveBadge.classList.toggle("saved", hasSave);
     } catch (error) {
       console.error(error);

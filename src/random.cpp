@@ -1,6 +1,7 @@
 #include "minigame/random.h"
 
 #include <sstream>
+#include <cstdint>
 #include <stdexcept>
 
 namespace minigame {
@@ -32,8 +33,16 @@ int RandomGenerator::between(int minimum, int maximum) {
         throw std::invalid_argument("minimum cannot exceed maximum");
     }
 
-    std::uniform_int_distribution<int> distribution(minimum, maximum);
-    return distribution(engine_);
+    // Fixed rejection mapping: standard-library distributions differ across platforms.
+    const std::uint64_t range = static_cast<std::uint64_t>(
+        static_cast<std::int64_t>(maximum) - minimum) + 1;
+    constexpr std::uint64_t space = std::uint64_t{1} << 32;
+    const std::uint64_t limit = space - space % range;
+    std::uint64_t roll;
+    do {
+        roll = engine_();
+    } while (roll >= limit);
+    return static_cast<int>(static_cast<std::int64_t>(minimum) + static_cast<std::int64_t>(roll % range));
 }
 
 std::string RandomGenerator::serializeState() const {
@@ -44,8 +53,13 @@ std::string RandomGenerator::serializeState() const {
 
 bool RandomGenerator::restoreState(const std::string& state) {
     std::istringstream input(state);
-    input >> engine_;
-    return !input.fail();
+    auto restored = engine_;
+    input >> restored;
+    if (input.fail()) return false;
+    input >> std::ws;
+    if (!input.eof()) return false;
+    engine_ = restored;
+    return true;
 }
 
 }  // namespace minigame

@@ -1,5 +1,8 @@
 #include <algorithm>
 #include <iostream>
+#include <iomanip>
+#include <sstream>
+#include <limits>
 #include <memory>
 #include <string>
 #include <utility>
@@ -182,21 +185,14 @@ void testSeededRunsAreReproducible() {
 }
 
 void testDefeatStateCanBePersisted() {
-    auto random = std::make_unique<SequenceRandom>(
-        std::vector<int>{1, 1, 14, 1, 20, 14, 1, 20, 14, 1, 20, 14, 1, 20, 14, 1, 20});
-    minigame::GameEngine engine("Doomed", std::move(random));
-
-    engine.perform("walk");
-    while (engine.snapshot().phase == "battle") {
-        engine.perform("attack");
+    minigame::GameEngine engine("Doomed", 42u);
+    for (int i = 0; i < 300 && engine.snapshot().phase != "defeat"; ++i) {
+        engine.perform(engine.snapshot().phase == "battle" ? "attack" : "walk");
     }
-
-    if (engine.snapshot().phase == "defeat") {
-        minigame::GameEngine restored("Placeholder", 5u);
-        check(restored.loadState(engine.saveState()), "defeat state should be loadable");
-        check(restored.snapshot().phase == "defeat", "restored defeat should remain terminal");
-        check(restored.snapshot().enemyName.empty(), "defeat should not retain an active enemy");
-    }
+    check(engine.snapshot().phase == "defeat", "fixture must actually reach defeat");
+    minigame::GameEngine restored("Placeholder", 5u);
+    check(restored.loadState(engine.saveState()), "defeat state should be loadable");
+    check(restored.stateJson() == engine.stateJson(), "defeat snapshot must round trip");
 }
 
 void testSaveLoadPreservesRngContinuity() {
@@ -229,6 +225,171 @@ void testSaveLoadPreservesRngContinuity() {
     check(!restored.loadState("not-a-minigame-save"), "invalid save data should be rejected");
 }
 
+// Handwritten MG2 fixtures exercise the public restore boundary, using a real RNG state.
+std::string fixture(const std::string& fields) {
+    minigame::RandomGenerator random(42u);
+    std::ostringstream save;
+    save << "MG2 42 \"Tester\" " << fields << " \"fixture\" "
+         << std::quoted(random.serializeState());
+    return save.str();
+}
+
+void testInvalidSavesAreAtomic() {
+    minigame::GameEngine engine("Untouched", 19u);
+    engine.perform("walk");
+    const auto before = engine.saveState();
+    const std::vector<std::string> invalid = {
+        fixture("100 0 0 2 0 0 0 0 0 0 0 \"\" 0"), // nonboolean sword
+        fixture("0 0 0 0 0 0 0 0 0 0 0 \"\" 0"), // dead explorer
+        fixture("100 0 0 0 0 0 0 0 0 2 0 \"\" 0"), // living defeat
+        fixture("100 0 0 0 0 0 0 0 0 1 0 \"Knight\" 0"), // dead combat enemy
+        fixture("100 0 0 0 0 0 0 0 0 1 0 \"Dragon\" 180"), // bypass boss gate
+        fixture("100 0 0 0 0 0 0 0 0 0 1 \"\" 0"), // boss outside battle
+        fixture("100 0 0 0 0 0 0 0 0 3 0 \"\" 0"), // unearned victory
+        fixture("100 0 0 0 0 0 0 1 0 0 0 \"\" 0"), // unopened progression
+        "MG2 -1" + before.substr(before.find(' ', 4)),
+        "MG2 4294967296" + before.substr(before.find(' ', 4)),
+        before + " trailing garbage",
+        before.substr(0, before.size() / 2)
+    };
+    for (const auto& save : invalid) {
+        check(!engine.loadState(save), "malformed or inconsistent save must be rejected");
+        check(engine.saveState() == before, "failed load must preserve all state including RNG");
+    }
+    minigame::Player rich;
+    rich.addItem(minigame::Item::Gold, std::numeric_limits<int>::max());
+    rich.addItem(minigame::Item::Gold, 5);
+    check(rich.itemCount(minigame::Item::Gold) == std::numeric_limits<int>::max(),
+          "large restored counters must not overflow on rewards");
+    minigame::Progression progression;
+    progression.restore(std::numeric_limits<int>::max(), false, false);
+    SequenceRandom reward({5, 100});
+    progression.recordVictory(rich, reward);
+    check(progression.victories() == std::numeric_limits<int>::max(),
+          "restored victory counter must not overflow");
+    minigame::RandomGenerator random(42u);
+    const auto rngBefore = random.serializeState();
+    check(!random.restoreState(rngBefore + " junk"), "RNG parser must consume the entire payload");
+    check(random.serializeState() == rngBefore, "failed RNG restore must be atomic");
+}
+
+void testDragonAndVictoryPersistence() {
+    auto random = std::make_unique<SequenceRandom>(std::vector<int>{14, 1, 20});
+    minigame::GameEngine engine("BossTester", std::move(random));
+    check(engine.loadState(fixture("100 0 2 1 1 0 3 1 0 1 1 \"Dragon\" 90")),
+          "enraged Dragon save should load");
+    check(engine.snapshot().enemyEnraged, "Dragon enrages at exactly half HP");
+    minigame::GameEngine restored("Other", 1u);
+    check(restored.loadState(engine.saveState()), "mid-boss save should load");
+    check(restored.stateJson() == engine.stateJson(), "shield and enrage must survive restore");
+    engine.perform("run");
+    restored.perform("run");
+    check(engine.snapshot().phase == "battle", "Dragon escape must remain blocked");
+    check(engine.snapshot().message.find("no escape") != std::string::npos,
+          "blocked escape should report its consequence");
+    check(restored.stateJson() == engine.stateJson(), "resumed boss RNG must match");
+
+    check(engine.loadState(fixture("100 0 0 1 1 0 3 1 0 1 1 \"Dragon\" 1")),
+          "near-victory fixture should load");
+    engine.perform("attack");
+    check(engine.snapshot().phase == "victory", "lethal boss hit must complete run");
+    check(restored.loadState(engine.saveState()), "victory must round trip");
+    check(restored.stateJson() == engine.stateJson(), "victory snapshot must match");
+    restored.perform("walk");
+    check(restored.snapshot().phase == "victory", "completed run must remain terminal");
+    restored.resetSeeded("Fresh", 0u);
+    check(restored.snapshot().phase == "exploring" && !restored.snapshot().gateOpened &&
+          !restored.snapshot().hasShield && restored.snapshot().seed == 0,
+          "new seeded run must clear old equipment/progression");
+}
+
+void testCrossPlatformRandomVector() {
+    minigame::RandomGenerator random(42u);
+    const std::vector<int> expected{43, 68, 77, 15, 27, 36, 21, 25};
+    for (const int value : expected) {
+        check(random.between(1, 100) == value, "portable seeded RNG must match golden vector");
+    }
+    check(random.between(std::numeric_limits<int>::min(), std::numeric_limits<int>::max())
+              >= std::numeric_limits<int>::min(), "full-width integer range must be supported");
+    minigame::GameEngine engine(std::string("A\x01\b\f", 4), 42u);
+    check(engine.stateJson().find("\\u0001") != std::string::npos,
+          "JSON must escape arbitrary control characters");
+}
+
+void testScriptedCombatRules() {
+    // Acquire gear, two potions and a key; win three Knights; heal; fight Dragon.
+    std::vector<int> rolls{59, 60, 59, 75, 59, 40, 59, 1, 59, 1};
+    for (int fight = 0; fight < 3; ++fight) {
+        const std::vector<int> knight{1, 1, 24, 1, 10, 24, 1, 10, 24, 5, 100};
+        rolls.insert(rolls.end(), knight.begin(), knight.end());
+    }
+    const std::vector<int> boss{83, 30, 24, 1, 20, 24, 1, 20, 24, 1, 20,
+                              1, 20, 40, 1, 20, 24, 1, 20, 40, 1, 20,
+                              24, 1, 20, 24};
+    rolls.insert(rolls.end(), boss.begin(), boss.end());
+    minigame::GameEngine engine("Scripted", std::make_unique<SequenceRandom>(rolls));
+    for (int i = 0; i < 5; ++i) engine.perform("walk");
+    for (int i = 0; i < 3; ++i) {
+        engine.perform("walk");
+        for (int hit = 0; hit < 3; ++hit) engine.perform("attack");
+    }
+    check(engine.snapshot().victories == 3, "script must unlock boss progression");
+    engine.perform("walk");
+    engine.perform("boss");
+    check(!engine.snapshot().hasKey && engine.snapshot().gateOpened,
+          "boss gate consumes the key exactly once");
+    engine.perform("attack"); engine.perform("attack");
+    check(!engine.snapshot().enemyEnraged && engine.snapshot().health == 70,
+          "above half HP Dragon attacks for 20 minus five Shield defense");
+    engine.perform("attack");
+    check(engine.snapshot().enemyHealth == 84 && engine.snapshot().enemyEnraged &&
+          engine.snapshot().health == 47,
+          "crossing half HP immediately adds eight damage before Shield mitigation");
+    engine.perform("run");
+    check(engine.snapshot().health == 24 && engine.snapshot().enemyHealth == 84,
+          "blocked Dragon flee costs one enemy turn and does not damage the boss");
+    engine.perform("heal");
+    check(engine.snapshot().health == 41 && engine.snapshot().potions == 1,
+          "potion consumes one item and costs an enraged enemy turn");
+    engine.perform("attack"); engine.perform("heal"); engine.perform("attack");
+    check(engine.snapshot().health == 12, "scripted combat must apply precise damage");
+    engine.perform("heal");
+    check(engine.snapshot().health == 12, "missing potion must not consume an enemy turn");
+    engine.perform("attack");
+    check(engine.snapshot().phase == "victory" && engine.snapshot().enemyName.empty(),
+          "lethal attack must skip retaliation and clear the boss");
+
+    minigame::GameEngine rogue("Rogue", std::make_unique<SequenceRandom>(
+        std::vector<int>{1, 60, 14, 80, 16}));
+    rogue.perform("walk"); rogue.perform("attack");
+    check(rogue.snapshot().enemyName == "Rogue" && rogue.snapshot().enemyHealth == 51 &&
+          rogue.snapshot().health == 84, "Rogue must attack rather than heal on a healing roll");
+    minigame::GameEngine golem("Golem", std::make_unique<SequenceRandom>(
+        std::vector<int>{1, 82, 24, 80, 8}));
+    golem.perform("walk"); golem.perform("attack");
+    check(golem.snapshot().enemyName == "Golem" && golem.snapshot().enemyHealth == 109 &&
+          golem.snapshot().health == 100, "Golem healing consumes its turn");
+}
+
+void testManyResumedRuns() {
+    for (std::uint32_t seed = 0; seed < 32; ++seed) {
+        minigame::GameEngine original("Replay", seed);
+        minigame::GameEngine resumed("Other", 999u);
+        for (int turn = 0; turn < 80; ++turn) {
+            check(resumed.loadState(original.saveState()), "every live phase must be loadable");
+            check(resumed.stateJson() == original.stateJson(), "live snapshot must match");
+            const auto state = original.snapshot();
+            if (state.phase == "defeat" || state.phase == "victory") break;
+            const std::string command = state.phase == "battle" ?
+                (turn % 5 == 0 ? "run" : (turn % 3 == 0 ? "heal" : "attack")) :
+                (turn % 4 == 0 ? "buy:shield" : "walk");
+            original.perform(command);
+            resumed.perform(command);
+            check(original.saveState() == resumed.saveState(), "resumed transition/RNG must match");
+        }
+    }
+}
+
 }  // namespace
 
 int main() {
@@ -243,6 +404,11 @@ int main() {
     testSeededRunsAreReproducible();
     testDefeatStateCanBePersisted();
     testSaveLoadPreservesRngContinuity();
+    testInvalidSavesAreAtomic();
+    testDragonAndVictoryPersistence();
+    testCrossPlatformRandomVector();
+    testManyResumedRuns();
+    testScriptedCombatRules();
 
     if (failures == 0) {
         std::cout << "All MiniGame core tests passed.\n";

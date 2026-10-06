@@ -12,7 +12,7 @@ The project now includes:
 - Knight, Mage, Rogue, and Golem normal enemies;
 - Sword offense and Shield damage mitigation;
 - combat, loot, healing shrine, and quiet-road exploration events;
-- a 180 HP Dragon that cannot be fled and enrages below half health;
+- a 180 HP Dragon that cannot be fled and enrages at or below half health;
 - shared C++ GameEngine rules across CLI and browser;
 - Linux/macOS/Windows tests, sanitizers, and a real Emscripten build.
 
@@ -39,7 +39,7 @@ ctest --test-dir build --output-on-failure
 ./build/minigame
 ~~~
 
-The CLI asks for an optional seed. During exploration, S saves and L loads .minigame-save; combat can also be saved.
+The CLI asks for an optional seed. During exploration or combat, S saves and L loads .minigame-save; Q quits.
 
 ## Gameplay
 
@@ -51,7 +51,7 @@ Win three normal battles, secure a Key, open the gate, and defeat the Dragon.
 | Mage | lighter health, stronger healing |
 | Rogue | 65 HP glass cannon |
 | Golem | 125 HP tank |
-| Dragon | 180 HP boss; enrages below half health |
+| Dragon | 180 HP boss; enrages at or below half health |
 
 | Item | Effect | Price |
 | --- | --- | ---: |
@@ -92,4 +92,5 @@ tests/
   test_core.cpp
 ~~~
 
-See docs/ARCHITECTURE.md, docs/GAMEPLAY.md, and docs/WEB.md.
+See [Architecture](docs/ARCHITECTURE.md), [Gameplay](docs/GAMEPLAY.md),
+[Web product](docs/WEB.md), and [QA commands and coverage](docs/QA.md).
